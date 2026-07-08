@@ -144,29 +144,37 @@
   }
   .grid.list-view{
     grid-template-columns: 1fr;
-    gap: 6px;
+    gap: 4px;
   }
   .grid.list-view .card{
-    flex-direction: row;
+    display: grid;
+    grid-template-columns: 96px minmax(0,1fr) 190px 210px;
     align-items: center;
+    column-gap: 18px;
     min-height: auto;
-    padding: 9px 16px 9px 14px;
+    padding: 10px 16px;
     border-left-width: 4px;
-    gap: 16px;
   }
-  .grid.list-view .card .titol{
-    padding-right: 0; margin: 0; font-size: 0.94rem;
-    flex: 1 1 300px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
-  }
-  .grid.list-view .card .autor{
-    margin: 0; flex: 0 0 200px;
-    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
-  }
-  .grid.list-view .card .meta{ margin-top:0; flex: 0 1 auto; flex-wrap: nowrap; }
   .grid.list-view .card .stamp{
     position: static; transform:none; border:none; padding:0;
-    font-size: 0.62rem; flex: 0 0 auto;
+    font-size: 0.62rem; justify-self:start;
   }
+  .grid.list-view .card .titol{
+    padding-right: 0; margin: 0; font-size: 0.92rem; font-weight:600;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .grid.list-view .card .autor{
+    margin: 0; font-size: 0.82rem;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .grid.list-view .card .meta{
+    margin-top:0; flex-wrap: nowrap; justify-content:flex-end;
+    overflow:hidden;
+  }
+  .grid.list-view .card .meta .tag{
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width: 110px;
+  }
+  .grid.list-view .card:not(:last-child){ border-bottom: 1px solid var(--border); border-radius: 6px 6px 0 0; }
 
   .view-toggle{ display:flex; border:1.5px solid var(--border); border-radius:8px; overflow:hidden; }
   .view-toggle button{
@@ -211,6 +219,13 @@
     font-family:'Fraunces', serif; font-weight: 600; font-size: 1.02rem;
     line-height:1.25; margin: 0 0 4px; padding-right: 54px;
   }
+  .volum-badge{
+    font-family:'IBM Plex Mono', monospace; font-weight:500;
+    font-size: 0.62rem; letter-spacing:0.03em; text-transform:uppercase;
+    background: var(--accent-soft); color: var(--accent);
+    padding: 2px 6px; border-radius: 4px; white-space:nowrap;
+  }
+  .grid.list-view .card .volum-badge{ font-size: 0.58rem; }
   .card .autor{
     font-size:0.84rem; color: var(--text-soft); margin-bottom: 10px;
   }
@@ -385,6 +400,10 @@
         <div class="full">
           <label>Subtítol</label>
           <input type="text" id="f_subtitol">
+        </div>
+        <div>
+          <label>Volum</label>
+          <input type="text" id="f_volum" placeholder="Vol. 1, Tomo 2…">
         </div>
         <div>
           <label>Autor</label>
@@ -661,6 +680,13 @@ function matchesFilters(b){
   return true;
 }
 
+function formatAuthor(autor){
+  if(!autor) return 'Autor desconegut';
+  const parts = autor.split(';').map(a => a.trim()).filter(Boolean);
+  if(parts.length <= 1) return parts[0] || autor;
+  return `${parts[0]} et al.`;
+}
+
 function stampInfo(ubicacio){
   if(!ubicacio) return null;
   const hasG = ubicacio.includes('Guillem');
@@ -684,8 +710,8 @@ function renderGrid(){
     const stamp = stampInfo(b.ubicacio);
     card.innerHTML = `
       ${stamp ? `<div class="stamp ${stamp.cls}">${stamp.label}</div>` : ''}
-      <div class="titol">${escapeHtml(b.titol)}</div>
-      <div class="autor">${escapeHtml(b.autor || 'Autor desconegut')}</div>
+      <div class="titol">${escapeHtml(b.titol)}${b.volum ? ` <span class="volum-badge">${escapeHtml(b.volum)}</span>` : ''}</div>
+      <div class="autor" title="${escapeHtml(b.autor || '')}">${escapeHtml(formatAuthor(b.autor))}</div>
       <div class="meta">
         ${b.area_principal ? `<span class="tag">${escapeHtml(b.area_principal.split(',')[0])}</span>` : ''}
         ${b.format ? `<span class="tag">${escapeHtml(b.format)}</span>` : ''}
@@ -714,6 +740,7 @@ function openModal(book){
   const f = (id, val) => document.getElementById(id).value = val || '';
   f('f_titol', book?.titol);
   f('f_subtitol', book?.subtitol);
+  f('f_volum', book?.volum);
   f('f_autor', book?.autor);
   f('f_autor_secundari', book?.autor_secundari);
   f('f_any', book?.any_publicacio);
@@ -878,6 +905,7 @@ document.getElementById('bookForm').addEventListener('submit', async (e) => {
   const payload = {
     titol: document.getElementById('f_titol').value.trim(),
     subtitol: document.getElementById('f_subtitol').value.trim() || null,
+    volum: document.getElementById('f_volum').value.trim() || null,
     autor: document.getElementById('f_autor').value.trim() || null,
     autor_secundari: document.getElementById('f_autor_secundari').value.trim() || null,
     any_publicacio: document.getElementById('f_any').value ? parseInt(document.getElementById('f_any').value) : null,
