@@ -5,7 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Biblioteca de Guillem</title>
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
-<link rel="apple-touch-icon" href="favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -87,7 +89,7 @@
     position: relative;
   }
   .search input{
-    width:100%; padding: 11px 14px 11px 38px;
+    width:100%; padding: 11px 14px 11px 42px;
     border: 1.5px solid var(--border);
     border-radius: 8px;
     background: var(--bg-card);
@@ -95,10 +97,13 @@
     font-size: 0.92rem;
     color: var(--text);
   }
+  .search input::placeholder{ color: var(--text-soft); opacity: 0.75; }
   .search input:focus{ outline: none; border-color: var(--accent); }
   .search svg{
-    position:absolute; left: 12px; top: 50%; transform: translateY(-50%);
-    width:16px; height:16px; opacity:0.5;
+    position:absolute; left: 14px; top: 50%; transform: translateY(-50%);
+    width:15px; height:15px;
+    stroke: var(--text-soft); opacity: 0.65;
+    pointer-events: none;
   }
   .btn-add{
     background: var(--text); color: var(--bg);
