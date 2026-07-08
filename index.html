@@ -9,6 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js"></script>
 <style>
   :root{
     --bg: #F5F1E8;
@@ -294,6 +295,23 @@
   .btn-danger{ background: transparent; color: #7A3B4A; border: 1.5px solid #7A3B4A44; }
   .btn-danger:hover{ background: #7A3B4A; color:#fff; }
 
+  .scanner-modal{ max-width: 420px; text-align:center; }
+  .scanner-hint{ font-size:0.8rem; color: var(--text-soft); margin: 4px 0 14px; }
+  .scanner-frame{
+    position:relative; width:100%; aspect-ratio: 4/3;
+    background:#000; border-radius:8px; overflow:hidden;
+  }
+  .scanner-frame video{ width:100%; height:100%; object-fit:cover; }
+  .scanner-line{
+    position:absolute; left:8%; right:8%; top:50%; height:2px;
+    background: #1E8A5F; box-shadow: 0 0 8px #1E8A5F;
+    animation: scanmove 1.8s ease-in-out infinite;
+  }
+  @keyframes scanmove{
+    0%,100%{ top: 20%; }
+    50%{ top: 80%; }
+  }
+
   .toast{
     position: fixed; bottom: 22px; left:50%; transform: translateX(-50%);
     background: var(--text); color: var(--bg);
@@ -354,6 +372,7 @@
         <label>Omplir dades a partir de l'ISBN</label>
         <div style="display:flex; gap:8px;">
           <input type="text" id="f_isbn_lookup" placeholder="9788408166610" style="flex:1;">
+          <button type="button" class="btn btn-secondary" id="btnScanIsbn" title="Escaneja amb la càmera">📷</button>
           <button type="button" class="btn btn-secondary" id="btnLookupIsbn">Cerca dades</button>
         </div>
         <div id="isbnLookupStatus" style="font-size:0.76rem; color:var(--text-soft); margin-top:4px; min-height:1em;"></div>
@@ -469,6 +488,21 @@
 </div>
 
 <div class="toast" id="toast"></div>
+
+<div class="overlay" id="scannerOverlay">
+  <div class="modal scanner-modal">
+    <h2>Escaneja el codi de barres</h2>
+    <p class="scanner-hint">Apunta la càmera al codi de barres ISBN de la contraportada.</p>
+    <div class="scanner-frame">
+      <video id="scannerVideo"></video>
+      <div class="scanner-line"></div>
+    </div>
+    <div id="scannerStatus" class="scanner-hint"></div>
+    <div class="modal-actions" style="justify-content:flex-end;">
+      <button type="button" class="btn btn-secondary" id="btnCloseScanner">Tanca</button>
+    </div>
+  </div>
+</div>
 
 <script>
 const SUPABASE_URL = 'https://pfebmwqmugiwsykfnqsc.supabase.co';
@@ -708,6 +742,7 @@ function closeModal(){
   document.getElementById('bookForm').reset();
   document.getElementById('f_isbn_lookup').value = '';
   document.getElementById('isbnLookupStatus').textContent = '';
+  closeScanner();
 }
 
 document.getElementById('btnAdd').onclick = () => openModal(null);
@@ -786,6 +821,50 @@ async function lookupIsbn(){
 document.getElementById('btnLookupIsbn').onclick = lookupIsbn;
 document.getElementById('f_isbn_lookup').addEventListener('keydown', (e) => {
   if(e.key === 'Enter'){ e.preventDefault(); lookupIsbn(); }
+});
+
+// --- Barcode scanning (ZXing) ---
+let codeReader = null;
+
+async function openScanner(){
+  document.getElementById('scannerOverlay').classList.add('open');
+  document.getElementById('scannerStatus').textContent = 'Obrint la càmera…';
+  try{
+    codeReader = new ZXing.BrowserMultiFormatReader();
+    const devices = await codeReader.listVideoInputDevices();
+    if(!devices.length){
+      document.getElementById('scannerStatus').textContent = 'No s\'ha trobat cap càmera.';
+      return;
+    }
+    const backCam = devices.find(d => /back|rear|environment/i.test(d.label)) || devices[devices.length - 1];
+    document.getElementById('scannerStatus').textContent = 'Cercant codi de barres…';
+    codeReader.decodeFromVideoDevice(backCam.deviceId, 'scannerVideo', (result, err) => {
+      if(result){
+        const text = result.getText();
+        document.getElementById('f_isbn_lookup').value = text;
+        closeScanner();
+        toast('Codi detectat: ' + text);
+        lookupIsbn();
+      }
+    });
+  }catch(err){
+    console.error(err);
+    document.getElementById('scannerStatus').textContent = 'No s\'ha pogut accedir a la càmera. Comprova els permisos.';
+  }
+}
+
+function closeScanner(){
+  document.getElementById('scannerOverlay').classList.remove('open');
+  if(codeReader){
+    codeReader.reset();
+    codeReader = null;
+  }
+}
+
+document.getElementById('btnScanIsbn').onclick = openScanner;
+document.getElementById('btnCloseScanner').onclick = closeScanner;
+document.getElementById('scannerOverlay').addEventListener('click', (e) => {
+  if(e.target.id === 'scannerOverlay') closeScanner();
 });
 
 document.getElementById('searchInput').addEventListener('input', (e) => {
