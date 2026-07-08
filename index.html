@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Biblioteca de Guillem</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="apple-touch-icon" href="favicon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -139,6 +141,55 @@
     grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
     gap: 14px;
   }
+  .grid.list-view{
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+  .grid.list-view .card{
+    flex-direction: row;
+    align-items: center;
+    min-height: auto;
+    padding: 9px 16px 9px 14px;
+    border-left-width: 4px;
+    gap: 16px;
+  }
+  .grid.list-view .card .titol{
+    padding-right: 0; margin: 0; font-size: 0.94rem;
+    flex: 1 1 300px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .grid.list-view .card .autor{
+    margin: 0; flex: 0 0 200px;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .grid.list-view .card .meta{ margin-top:0; flex: 0 1 auto; flex-wrap: nowrap; }
+  .grid.list-view .card .stamp{
+    position: static; transform:none; border:none; padding:0;
+    font-size: 0.62rem; flex: 0 0 auto;
+  }
+
+  .view-toggle{ display:flex; border:1.5px solid var(--border); border-radius:8px; overflow:hidden; }
+  .view-toggle button{
+    background: var(--bg-card); border:none; padding: 9px 11px; cursor:pointer;
+    display:flex; align-items:center; color: var(--text-soft);
+  }
+  .view-toggle button + button{ border-left:1.5px solid var(--border); }
+  .view-toggle button.active{ background: var(--accent-soft); color: var(--text); }
+  .view-toggle svg{ width:16px; height:16px; }
+
+  .btn-outline{
+    background: var(--bg-card); color: var(--text);
+    border: 1.5px solid var(--border); padding: 10px 16px; border-radius: 8px;
+    font-family:'Inter',sans-serif; font-weight:600; font-size:0.86rem; cursor:pointer;
+    white-space:nowrap;
+  }
+  .btn-outline:hover{ border-color: var(--accent); color: var(--accent); }
+
+  .readonly-banner{
+    background: var(--accent-soft); border: 1px solid var(--border);
+    color: var(--text); font-family:'IBM Plex Mono',monospace; font-size: 0.76rem;
+    padding: 8px 14px; border-radius: 8px; margin-bottom: 16px;
+    display:flex; align-items:center; gap:8px;
+  }
   .card{
     background: var(--bg-card);
     border: 1px solid var(--border);
@@ -205,6 +256,12 @@
   .modal h2{
     font-family:'Fraunces',serif; font-weight:600; margin: 0 0 18px; font-size:1.4rem;
   }
+  .isbn-lookup{
+    background: var(--accent-soft); border: 1px dashed var(--accent);
+    border-radius: 8px; padding: 12px 14px; margin-bottom: 18px;
+  }
+  .isbn-lookup label{ margin-bottom:6px; }
+
   .form-grid{
     display:grid; grid-template-columns: 1fr 1fr; gap: 12px 14px;
   }
@@ -264,11 +321,22 @@
     <div class="stats" id="stats"></div>
   </header>
 
+  <div class="readonly-banner" id="readonlyBanner" style="display:none;">📖 Mode lectura — pots consultar el catàleg, no editar-lo.</div>
+
   <div class="toolbar">
     <div class="search">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
       <input type="text" id="searchInput" placeholder="Cerca per títol, autor o paraula clau…">
     </div>
+    <div class="view-toggle">
+      <button id="viewGrid" title="Vista de caixetes">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+      </button>
+      <button id="viewList" title="Vista de llista">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
+      </button>
+    </div>
+    <button class="btn-outline" id="btnShare">Comparteix</button>
     <button class="btn-add" id="btnAdd">+ Afegir llibre</button>
   </div>
 
@@ -282,6 +350,14 @@
   <div class="modal">
     <h2 id="modalTitle">Afegir llibre</h2>
     <form id="bookForm">
+      <div class="isbn-lookup" id="isbnLookup">
+        <label>Omplir dades a partir de l'ISBN</label>
+        <div style="display:flex; gap:8px;">
+          <input type="text" id="f_isbn_lookup" placeholder="9788408166610" style="flex:1;">
+          <button type="button" class="btn btn-secondary" id="btnLookupIsbn">Cerca dades</button>
+        </div>
+        <div id="isbnLookupStatus" style="font-size:0.76rem; color:var(--text-soft); margin-top:4px; min-height:1em;"></div>
+      </div>
       <div class="form-grid">
         <div class="full">
           <label>Títol *</label>
@@ -415,6 +491,25 @@ let ALL_BOOKS = [];
 let editingId = null;
 let activeFilters = { area: null, ubicacio: '', format: '', idioma: '', llegit: '' };
 let searchTerm = '';
+
+const READONLY = new URLSearchParams(location.search).get('share') === '1';
+let viewMode = localStorage.getItem('biblioteca_view_mode') || 'grid';
+
+const LANG_MAP = { ca:'Català', es:'Espanyol', en:'Anglès', fr:'Francès', it:'Italià', pt:'Portuguès', de:'Alemany', ja:'Japonès' };
+
+function setViewMode(mode){
+  viewMode = mode;
+  localStorage.setItem('biblioteca_view_mode', mode);
+  document.getElementById('grid').classList.toggle('list-view', mode === 'list');
+  document.getElementById('viewGrid').classList.toggle('active', mode === 'grid');
+  document.getElementById('viewList').classList.toggle('active', mode === 'list');
+}
+
+if(READONLY){
+  document.getElementById('readonlyBanner').style.display = 'flex';
+  document.getElementById('btnAdd').style.display = 'none';
+  document.getElementById('btnShare').style.display = 'none';
+}
 
 function areaColor(area){
   if(!area) return 'var(--c-default)';
@@ -574,8 +669,13 @@ function escapeHtml(s){
 
 function openModal(book){
   editingId = book ? book.id : null;
-  document.getElementById('modalTitle').textContent = book ? 'Editar llibre' : 'Afegir llibre';
-  document.getElementById('btnDelete').style.display = book ? 'inline-block' : 'none';
+  const isReadonlyView = READONLY;
+  document.getElementById('modalTitle').textContent = isReadonlyView ? 'Detall del llibre' : (book ? 'Editar llibre' : 'Afegir llibre');
+  document.getElementById('btnDelete').style.display = (book && !isReadonlyView) ? 'inline-block' : 'none';
+  document.querySelector('#bookForm button[type=submit]').style.display = isReadonlyView ? 'none' : 'inline-block';
+  document.getElementById('btnCancel').textContent = isReadonlyView ? 'Tanca' : 'Cancel·la';
+  document.getElementById('isbnLookup').style.display = isReadonlyView ? 'none' : 'block';
+  document.querySelectorAll('#bookForm input, #bookForm select, #bookForm textarea').forEach(el => el.disabled = isReadonlyView);
 
   const f = (id, val) => document.getElementById(id).value = val || '';
   f('f_titol', book?.titol);
@@ -606,12 +706,86 @@ function closeModal(){
   document.getElementById('overlay').classList.remove('open');
   editingId = null;
   document.getElementById('bookForm').reset();
+  document.getElementById('f_isbn_lookup').value = '';
+  document.getElementById('isbnLookupStatus').textContent = '';
 }
 
 document.getElementById('btnAdd').onclick = () => openModal(null);
 document.getElementById('btnCancel').onclick = closeModal;
 document.getElementById('overlay').addEventListener('click', (e) => {
   if(e.target.id === 'overlay') closeModal();
+});
+
+document.getElementById('viewGrid').onclick = () => setViewMode('grid');
+document.getElementById('viewList').onclick = () => setViewMode('list');
+
+document.getElementById('btnShare').onclick = async () => {
+  const url = location.origin + location.pathname + '?share=1';
+  try{
+    await navigator.clipboard.writeText(url);
+    toast('Enllaç de només lectura copiat');
+  }catch(e){
+    prompt('Copia aquest enllaç:', url);
+  }
+};
+
+async function lookupIsbn(){
+  const raw = document.getElementById('f_isbn_lookup').value.trim();
+  const isbn = raw.replace(/[^0-9Xx]/g, '');
+  const statusEl = document.getElementById('isbnLookupStatus');
+  if(!isbn){ statusEl.textContent = 'Escriu un ISBN primer.'; return; }
+
+  const btn = document.getElementById('btnLookupIsbn');
+  btn.disabled = true; btn.textContent = 'Cercant…';
+  statusEl.textContent = 'Consultant Google Books…';
+
+  try{
+    let found = false;
+
+    const gRes = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`);
+    const gJson = await gRes.json();
+    if(gJson.totalItems > 0){
+      const v = gJson.items[0].volumeInfo;
+      if(v.title) document.getElementById('f_titol').value = v.title;
+      if(v.subtitle) document.getElementById('f_subtitol').value = v.subtitle;
+      if(v.authors) document.getElementById('f_autor').value = v.authors.join('; ');
+      if(v.publishedDate) document.getElementById('f_any').value = v.publishedDate.slice(0,4);
+      if(v.publisher) document.getElementById('f_editorial').value = v.publisher;
+      if(v.language) document.getElementById('f_idioma').value = LANG_MAP[v.language] || v.language;
+      if(v.description) document.getElementById('f_resum').value = v.description;
+      document.getElementById('f_isbn').value = raw;
+      found = true;
+    }
+
+    if(!found){
+      statusEl.textContent = 'Consultant Open Library…';
+      const oRes = await fetch(`https://openlibrary.org/api/books?bibkeys=ISBN:${isbn}&format=json&jscmd=data`);
+      const oJson = await oRes.json();
+      const key = `ISBN:${isbn}`;
+      if(oJson[key]){
+        const d = oJson[key];
+        if(d.title) document.getElementById('f_titol').value = d.title;
+        if(d.subtitle) document.getElementById('f_subtitol').value = d.subtitle;
+        if(d.authors) document.getElementById('f_autor').value = d.authors.map(a=>a.name).join('; ');
+        if(d.publish_date) document.getElementById('f_any').value = (d.publish_date.match(/\d{4}/)||[''])[0];
+        if(d.publishers) document.getElementById('f_editorial').value = d.publishers.map(p=>p.name).join('; ');
+        document.getElementById('f_isbn').value = raw;
+        found = true;
+      }
+    }
+
+    statusEl.textContent = found ? 'Dades trobades i omplertes ✓' : 'No s\'ha trobat cap llibre amb aquest ISBN.';
+  }catch(err){
+    console.error(err);
+    statusEl.textContent = 'Error consultant les dades. Prova-ho de nou.';
+  }finally{
+    btn.disabled = false; btn.textContent = 'Cerca dades';
+  }
+}
+
+document.getElementById('btnLookupIsbn').onclick = lookupIsbn;
+document.getElementById('f_isbn_lookup').addEventListener('keydown', (e) => {
+  if(e.key === 'Enter'){ e.preventDefault(); lookupIsbn(); }
 });
 
 document.getElementById('searchInput').addEventListener('input', (e) => {
@@ -621,6 +795,7 @@ document.getElementById('searchInput').addEventListener('input', (e) => {
 
 document.getElementById('bookForm').addEventListener('submit', async (e) => {
   e.preventDefault();
+  if(READONLY) return;
   const payload = {
     titol: document.getElementById('f_titol').value.trim(),
     subtitol: document.getElementById('f_subtitol').value.trim() || null,
@@ -662,7 +837,7 @@ document.getElementById('bookForm').addEventListener('submit', async (e) => {
 });
 
 document.getElementById('btnDelete').onclick = async () => {
-  if(!editingId) return;
+  if(READONLY || !editingId) return;
   if(!confirm('Segur que vols eliminar aquest llibre?')) return;
   const { error } = await sb.from('llibres').delete().eq('id', editingId);
   if(error){ toast('Error eliminant'); return; }
@@ -671,6 +846,7 @@ document.getElementById('btnDelete').onclick = async () => {
   loadBooks();
 };
 
+setViewMode(viewMode);
 loadBooks();
 </script>
 </body>
