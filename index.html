@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Biblioteca de Guillem</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --bg: #F5F1E8;
+    --bg-card: #FCFAF4;
+    --text: #2B2620;
+    --text-soft: #6b6153;
+    --border: #E2D8C3;
+    --accent: #8B5E3C;
+    --accent-soft: #E9DFCB;
+
+    --c-historia: #1E8A5F;
+    --c-politica: #7A3B4A;
+    --c-literatura: #3D5A6C;
+    --c-musica: #C9962F;
+    --c-periodisme: #5C6670;
+    --c-psicologia: #A8735A;
+    --c-filosofia: #6B5B7A;
+    --c-esports: #4F6D8C;
+    --c-cultura: #A8823C;
+    --c-default: #8B5E3C;
+  }
+
+  *{ box-sizing: border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+  }
+
+  /* subtle paper texture via layered radial gradients */
+  body{
+    background-image:
+      radial-gradient(circle at 20% 10%, rgba(139,94,60,0.05), transparent 40%),
+      radial-gradient(circle at 90% 80%, rgba(30,138,95,0.04), transparent 40%);
+  }
+
+  .wrap{ max-width: 1180px; margin: 0 auto; padding: 32px 24px 80px; }
+
+  /* Header */
+  header{
+    display:flex; align-items:flex-end; justify-content:space-between;
+    gap: 20px; flex-wrap: wrap;
+    border-bottom: 2px solid var(--text);
+    padding-bottom: 18px; margin-bottom: 22px;
+  }
+  .brand h1{
+    font-family: 'Fraunces', serif;
+    font-weight: 600;
+    font-size: 2.1rem;
+    margin: 0 0 4px;
+    letter-spacing: -0.01em;
+  }
+  .brand .sub{
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.78rem;
+    color: var(--text-soft);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .stats{
+    display:flex; gap: 22px; font-family:'IBM Plex Mono', monospace;
+    font-size: 0.82rem; color: var(--text-soft);
+  }
+  .stats b{ color: var(--text); font-size: 1.05rem; display:block; font-family:'Fraunces',serif; font-weight:600;}
+
+  /* Toolbar */
+  .toolbar{
+    display:flex; gap: 12px; align-items:center; flex-wrap: wrap;
+    margin-bottom: 18px;
+  }
+  .search{
+    flex: 1 1 260px;
+    position: relative;
+  }
+  .search input{
+    width:100%; padding: 11px 14px 11px 38px;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg-card);
+    font-family: 'Inter', sans-serif;
+    font-size: 0.92rem;
+    color: var(--text);
+  }
+  .search input:focus{ outline: none; border-color: var(--accent); }
+  .search svg{
+    position:absolute; left: 12px; top: 50%; transform: translateY(-50%);
+    width:16px; height:16px; opacity:0.5;
+  }
+  .btn-add{
+    background: var(--text); color: var(--bg);
+    border: none; padding: 11px 18px; border-radius: 8px;
+    font-family: 'Inter', sans-serif; font-weight:600; font-size:0.9rem;
+    cursor:pointer; white-space:nowrap;
+    transition: background 0.15s;
+  }
+  .btn-add:hover{ background: var(--accent); }
+
+  /* Filters */
+  .filters{
+    display:flex; gap: 8px; flex-wrap: wrap; margin-bottom: 26px;
+  }
+  .chip{
+    border: 1.5px solid var(--border);
+    background: var(--bg-card);
+    padding: 6px 12px;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-family:'Inter',sans-serif;
+    cursor: pointer;
+    color: var(--text-soft);
+    display:flex; align-items:center; gap:6px;
+    transition: all 0.12s;
+  }
+  .chip .dot{ width:8px; height:8px; border-radius:50%; }
+  .chip.active{ border-color: var(--text); color: var(--text); font-weight:600; background:var(--accent-soft); }
+  select.chip{ appearance:none; -webkit-appearance:none; padding-right:26px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%236b6153'/%3E%3C/svg%3E");
+    background-repeat:no-repeat; background-position: right 10px center;
+  }
+  .clear-filters{
+    font-size:0.78rem; color: var(--text-soft); text-decoration:underline;
+    cursor:pointer; align-self:center; padding: 6px 4px;
+  }
+
+  /* Cards grid = fitxes */
+  .grid{
+    display:grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 14px;
+  }
+  .card{
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-left: 5px solid var(--c-default);
+    border-radius: 6px;
+    padding: 14px 16px 16px;
+    cursor: pointer;
+    position: relative;
+    transition: transform 0.1s, box-shadow 0.1s;
+    min-height: 128px;
+    display:flex; flex-direction:column;
+  }
+  .card:hover{
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(43,38,32,0.08);
+  }
+  .card .titol{
+    font-family:'Fraunces', serif; font-weight: 600; font-size: 1.02rem;
+    line-height:1.25; margin: 0 0 4px; padding-right: 54px;
+  }
+  .card .autor{
+    font-size:0.84rem; color: var(--text-soft); margin-bottom: 10px;
+  }
+  .card .meta{
+    margin-top:auto; display:flex; flex-wrap:wrap; gap:6px;
+  }
+  .tag{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 0.66rem; letter-spacing:0.03em; text-transform:uppercase;
+    padding: 3px 7px; border-radius: 4px;
+    background: rgba(43,38,32,0.06); color: var(--text-soft);
+  }
+  .stamp{
+    position:absolute; top: 12px; right: 12px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 0.62rem; font-weight:600; letter-spacing:0.03em;
+    padding: 3px 7px; border: 1.5px dashed currentColor;
+    border-radius: 4px; transform: rotate(3deg);
+    text-transform: uppercase;
+  }
+  .stamp.guillem{ color:#8B5E3C; }
+  .stamp.synology{ color:#4F6D8C; }
+  .stamp.mixed{ color:#7A3B4A; }
+
+  .empty{
+    text-align:center; padding: 60px 20px; color: var(--text-soft);
+    font-family:'Fraunces',serif; font-size:1.1rem;
+  }
+
+  /* Modal */
+  .overlay{
+    position:fixed; inset:0; background: rgba(43,38,32,0.45);
+    display:none; align-items:flex-start; justify-content:center;
+    padding: 40px 16px; overflow-y:auto; z-index: 50;
+  }
+  .overlay.open{ display:flex; }
+  .modal{
+    background: var(--bg-card);
+    border-radius: 10px;
+    max-width: 640px; width:100%;
+    padding: 26px 28px 28px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.25);
+  }
+  .modal h2{
+    font-family:'Fraunces',serif; font-weight:600; margin: 0 0 18px; font-size:1.4rem;
+  }
+  .form-grid{
+    display:grid; grid-template-columns: 1fr 1fr; gap: 12px 14px;
+  }
+  .form-grid .full{ grid-column: 1 / -1; }
+  label{
+    font-size: 0.72rem; text-transform:uppercase; letter-spacing:0.04em;
+    color: var(--text-soft); font-family:'IBM Plex Mono',monospace;
+    display:block; margin-bottom: 4px;
+  }
+  input[type=text], input[type=number], select, textarea{
+    width:100%; padding: 8px 10px; border: 1.5px solid var(--border);
+    border-radius: 6px; font-family:'Inter',sans-serif; font-size: 0.88rem;
+    background: #fff; color: var(--text);
+  }
+  textarea{ resize:vertical; min-height: 54px; }
+  input:focus, select:focus, textarea:focus{ outline:none; border-color:var(--accent); }
+
+  .modal-actions{
+    display:flex; justify-content:space-between; align-items:center;
+    margin-top: 22px; gap: 10px;
+  }
+  .btn{
+    padding: 10px 16px; border-radius: 7px; font-family:'Inter',sans-serif;
+    font-weight:600; font-size:0.86rem; cursor:pointer; border:none;
+  }
+  .btn-primary{ background: var(--text); color: var(--bg); }
+  .btn-primary:hover{ background: var(--accent); }
+  .btn-secondary{ background: transparent; color: var(--text-soft); border:1.5px solid var(--border); }
+  .btn-secondary:hover{ border-color: var(--text); color:var(--text); }
+  .btn-danger{ background: transparent; color: #7A3B4A; border: 1.5px solid #7A3B4A44; }
+  .btn-danger:hover{ background: #7A3B4A; color:#fff; }
+
+  .toast{
+    position: fixed; bottom: 22px; left:50%; transform: translateX(-50%);
+    background: var(--text); color: var(--bg);
+    padding: 10px 18px; border-radius: 8px; font-size:0.85rem;
+    font-family:'Inter',sans-serif;
+    opacity:0; pointer-events:none; transition: opacity 0.2s, transform 0.2s;
+    z-index: 100;
+  }
+  .toast.show{ opacity:1; transform: translateX(-50%) translateY(-6px); }
+
+  @media (max-width: 560px){
+    .form-grid{ grid-template-columns: 1fr; }
+    header{ flex-direction:column; align-items:flex-start; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <h1>Biblioteca</h1>
+      <div class="sub">Catàleg personal · Guillem</div>
+    </div>
+    <div class="stats" id="stats"></div>
+  </header>
+
+  <div class="toolbar">
+    <div class="search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+      <input type="text" id="searchInput" placeholder="Cerca per títol, autor o paraula clau…">
+    </div>
+    <button class="btn-add" id="btnAdd">+ Afegir llibre</button>
+  </div>
+
+  <div class="filters" id="filters"></div>
+
+  <div class="grid" id="grid"></div>
+  <div class="empty" id="emptyState" style="display:none;">Cap llibre coincideix amb la cerca.</div>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <h2 id="modalTitle">Afegir llibre</h2>
+    <form id="bookForm">
+      <div class="form-grid">
+        <div class="full">
+          <label>Títol *</label>
+          <input type="text" id="f_titol" required>
+        </div>
+        <div class="full">
+          <label>Subtítol</label>
+          <input type="text" id="f_subtitol">
+        </div>
+        <div>
+          <label>Autor</label>
+          <input type="text" id="f_autor">
+        </div>
+        <div>
+          <label>Autor secundari / Editor</label>
+          <input type="text" id="f_autor_secundari">
+        </div>
+        <div>
+          <label>Any de publicació</label>
+          <input type="number" id="f_any">
+        </div>
+        <div>
+          <label>Editorial</label>
+          <input type="text" id="f_editorial">
+        </div>
+        <div>
+          <label>Àrea principal</label>
+          <select id="f_area">
+            <option value="">— sense àrea —</option>
+            <option>Història</option>
+            <option>Política i societat</option>
+            <option>Literatura</option>
+            <option>Música</option>
+            <option>Periodisme</option>
+            <option>Psicologia i creixement personal</option>
+            <option>Filosofia i pensament</option>
+            <option>Esports</option>
+            <option>Cultura i arts</option>
+          </select>
+        </div>
+        <div>
+          <label>Tipologia / Especialitat</label>
+          <input type="text" id="f_tipologia">
+        </div>
+        <div>
+          <label>Format</label>
+          <input type="text" id="f_format" placeholder="Físic, PDF, EPUB…">
+        </div>
+        <div>
+          <label>Ubicació</label>
+          <input type="text" id="f_ubicacio" placeholder="Guillem, Synology…">
+        </div>
+        <div>
+          <label>Idioma</label>
+          <input type="text" id="f_idioma">
+        </div>
+        <div>
+          <label>Llegit</label>
+          <select id="f_llegit">
+            <option value="">—</option>
+            <option value="Sí">Sí</option>
+            <option value="No">No</option>
+          </select>
+        </div>
+        <div>
+          <label>ISBN/ISSN</label>
+          <input type="text" id="f_isbn">
+        </div>
+        <div>
+          <label>Preu</label>
+          <input type="number" step="0.01" id="f_preu">
+        </div>
+        <div>
+          <label>Data d'adquisició</label>
+          <input type="text" id="f_data_adquisicio" placeholder="2024, o 2024-05-10">
+        </div>
+        <div>
+          <label>Origen</label>
+          <input type="text" id="f_origen" placeholder="Sant Jordi, regal, Arxiu UAB…">
+        </div>
+        <div class="full">
+          <label>Paraules clau</label>
+          <input type="text" id="f_paraules_clau" placeholder="separades per ; ">
+        </div>
+        <div class="full">
+          <label>Projecte / Recerca associada</label>
+          <input type="text" id="f_projecte">
+        </div>
+        <div class="full">
+          <label>Resum</label>
+          <textarea id="f_resum"></textarea>
+        </div>
+        <div class="full">
+          <label>Comentaris personals</label>
+          <textarea id="f_comentaris"></textarea>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <div>
+          <button type="button" class="btn btn-danger" id="btnDelete" style="display:none;">Eliminar</button>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button type="button" class="btn btn-secondary" id="btnCancel">Cancel·la</button>
+          <button type="submit" class="btn btn-primary">Desa</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = 'https://pfebmwqmugiwsykfnqsc.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBmZWJtd3FtdWdpd3N5a2ZucXNjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM1MzU4MzMsImV4cCI6MjA5OTExMTgzM30.XlnZKD3sEZC20q9CUTbD-nqROGJA6PhFPAT435_dOqE';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const AREA_COLORS = {
+  'Història': 'var(--c-historia)',
+  'Política i societat': 'var(--c-politica)',
+  'Literatura': 'var(--c-literatura)',
+  'Música': 'var(--c-musica)',
+  'Periodisme': 'var(--c-periodisme)',
+  'Psicologia i creixement personal': 'var(--c-psicologia)',
+  'Filosofia i pensament': 'var(--c-filosofia)',
+  'Esports': 'var(--c-esports)',
+  'Cultura i arts': 'var(--c-cultura)',
+};
+
+let ALL_BOOKS = [];
+let editingId = null;
+let activeFilters = { area: null, ubicacio: '', format: '', idioma: '', llegit: '' };
+let searchTerm = '';
+
+function areaColor(area){
+  if(!area) return 'var(--c-default)';
+  const first = area.split(',')[0].trim();
+  return AREA_COLORS[first] || 'var(--c-default)';
+}
+
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=> t.classList.remove('show'), 2200);
+}
+
+async function loadBooks(){
+  let all = [];
+  let from = 0;
+  const step = 1000;
+  while(true){
+    const { data, error } = await sb.from('llibres').select('*').order('titol').range(from, from+step-1);
+    if(error){ console.error(error); toast('Error carregant llibres'); break; }
+    all = all.concat(data);
+    if(data.length < step) break;
+    from += step;
+  }
+  ALL_BOOKS = all;
+  renderStats();
+  renderFilters();
+  renderGrid();
+}
+
+function renderStats(){
+  const total = ALL_BOOKS.length;
+  const casa = ALL_BOOKS.filter(b => (b.ubicacio||'').includes('Guillem')).length;
+  const synology = ALL_BOOKS.filter(b => (b.ubicacio||'').includes('Synology')).length;
+  document.getElementById('stats').innerHTML = `
+    <div><b>${total}</b>llibres</div>
+    <div><b>${casa}</b>a casa</div>
+    <div><b>${synology}</b>a synology</div>
+  `;
+}
+
+function uniqueValues(field, splitOn){
+  const set = new Set();
+  ALL_BOOKS.forEach(b=>{
+    const v = b[field];
+    if(!v) return;
+    if(splitOn){
+      v.split(splitOn).forEach(p => set.add(p.trim()));
+    } else {
+      set.add(v);
+    }
+  });
+  return Array.from(set).filter(Boolean).sort();
+}
+
+function renderFilters(){
+  const areas = Object.keys(AREA_COLORS);
+  const ubicacions = uniqueValues('ubicacio', ',');
+  const formats = uniqueValues('format', ',');
+  const idiomes = uniqueValues('idioma', ',');
+
+  const el = document.getElementById('filters');
+  el.innerHTML = '';
+
+  areas.forEach(a => {
+    const chip = document.createElement('div');
+    chip.className = 'chip' + (activeFilters.area === a ? ' active' : '');
+    chip.innerHTML = `<span class="dot" style="background:${AREA_COLORS[a]}"></span>${a}`;
+    chip.onclick = () => {
+      activeFilters.area = activeFilters.area === a ? null : a;
+      renderFilters(); renderGrid();
+    };
+    el.appendChild(chip);
+  });
+
+  el.appendChild(makeSelect('ubicacio', 'Ubicació', ubicacions));
+  el.appendChild(makeSelect('format', 'Format', formats));
+  el.appendChild(makeSelect('idioma', 'Idioma', idiomes));
+  el.appendChild(makeSelect('llegit', 'Llegit', ['Sí','No']));
+
+  const clear = document.createElement('div');
+  clear.className = 'clear-filters';
+  clear.textContent = 'Neteja filtres';
+  clear.onclick = () => {
+    activeFilters = { area:null, ubicacio:'', format:'', idioma:'', llegit:'' };
+    document.getElementById('searchInput').value='';
+    searchTerm='';
+    renderFilters(); renderGrid();
+  };
+  el.appendChild(clear);
+}
+
+function makeSelect(key, placeholder, options){
+  const sel = document.createElement('select');
+  sel.className = 'chip';
+  sel.innerHTML = `<option value="">${placeholder}</option>` + options.map(o=>`<option value="${o}" ${activeFilters[key]===o?'selected':''}>${o}</option>`).join('');
+  sel.onchange = () => { activeFilters[key] = sel.value; renderGrid(); };
+  return sel;
+}
+
+function matchesFilters(b){
+  if(activeFilters.area){
+    const first = (b.area_principal||'').split(',')[0].trim();
+    if(first !== activeFilters.area) return false;
+  }
+  if(activeFilters.ubicacio && !(b.ubicacio||'').includes(activeFilters.ubicacio)) return false;
+  if(activeFilters.format && !(b.format||'').includes(activeFilters.format)) return false;
+  if(activeFilters.idioma && !(b.idioma||'').includes(activeFilters.idioma)) return false;
+  if(activeFilters.llegit && b.llegit !== activeFilters.llegit) return false;
+  if(searchTerm){
+    const hay = [b.titol,b.autor,b.paraules_clau,b.subtitol].filter(Boolean).join(' ').toLowerCase();
+    if(!hay.includes(searchTerm.toLowerCase())) return false;
+  }
+  return true;
+}
+
+function stampInfo(ubicacio){
+  if(!ubicacio) return null;
+  const hasG = ubicacio.includes('Guillem');
+  const hasS = ubicacio.includes('Synology');
+  if(hasG && hasS) return {label:'Casa + Synology', cls:'mixed'};
+  if(hasG) return {label:'Casa', cls:'guillem'};
+  if(hasS) return {label:'Synology', cls:'synology'};
+  return {label: ubicacio, cls:'mixed'};
+}
+
+function renderGrid(){
+  const grid = document.getElementById('grid');
+  const filtered = ALL_BOOKS.filter(matchesFilters);
+  grid.innerHTML = '';
+  document.getElementById('emptyState').style.display = filtered.length ? 'none' : 'block';
+
+  filtered.forEach(b => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.style.borderLeftColor = areaColor(b.area_principal);
+    const stamp = stampInfo(b.ubicacio);
+    card.innerHTML = `
+      ${stamp ? `<div class="stamp ${stamp.cls}">${stamp.label}</div>` : ''}
+      <div class="titol">${escapeHtml(b.titol)}</div>
+      <div class="autor">${escapeHtml(b.autor || 'Autor desconegut')}</div>
+      <div class="meta">
+        ${b.area_principal ? `<span class="tag">${escapeHtml(b.area_principal.split(',')[0])}</span>` : ''}
+        ${b.format ? `<span class="tag">${escapeHtml(b.format)}</span>` : ''}
+        ${b.llegit === 'Sí' ? `<span class="tag">Llegit</span>` : ''}
+      </div>
+    `;
+    card.onclick = () => openModal(b);
+    grid.appendChild(card);
+  });
+}
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function openModal(book){
+  editingId = book ? book.id : null;
+  document.getElementById('modalTitle').textContent = book ? 'Editar llibre' : 'Afegir llibre';
+  document.getElementById('btnDelete').style.display = book ? 'inline-block' : 'none';
+
+  const f = (id, val) => document.getElementById(id).value = val || '';
+  f('f_titol', book?.titol);
+  f('f_subtitol', book?.subtitol);
+  f('f_autor', book?.autor);
+  f('f_autor_secundari', book?.autor_secundari);
+  f('f_any', book?.any_publicacio);
+  f('f_editorial', book?.editorial);
+  f('f_area', book?.area_principal ? book.area_principal.split(',')[0].trim() : '');
+  f('f_tipologia', book?.tipologia);
+  f('f_format', book?.format);
+  f('f_ubicacio', book?.ubicacio);
+  f('f_idioma', book?.idioma);
+  f('f_llegit', book?.llegit);
+  f('f_isbn', book?.isbn);
+  f('f_preu', book?.preu);
+  f('f_data_adquisicio', book?.data_adquisicio);
+  f('f_origen', book?.origen);
+  f('f_paraules_clau', book?.paraules_clau);
+  f('f_projecte', book?.projecte_recerca);
+  f('f_resum', book?.resum);
+  f('f_comentaris', book?.comentaris);
+
+  document.getElementById('overlay').classList.add('open');
+}
+
+function closeModal(){
+  document.getElementById('overlay').classList.remove('open');
+  editingId = null;
+  document.getElementById('bookForm').reset();
+}
+
+document.getElementById('btnAdd').onclick = () => openModal(null);
+document.getElementById('btnCancel').onclick = closeModal;
+document.getElementById('overlay').addEventListener('click', (e) => {
+  if(e.target.id === 'overlay') closeModal();
+});
+
+document.getElementById('searchInput').addEventListener('input', (e) => {
+  searchTerm = e.target.value;
+  renderGrid();
+});
+
+document.getElementById('bookForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const payload = {
+    titol: document.getElementById('f_titol').value.trim(),
+    subtitol: document.getElementById('f_subtitol').value.trim() || null,
+    autor: document.getElementById('f_autor').value.trim() || null,
+    autor_secundari: document.getElementById('f_autor_secundari').value.trim() || null,
+    any_publicacio: document.getElementById('f_any').value ? parseInt(document.getElementById('f_any').value) : null,
+    editorial: document.getElementById('f_editorial').value.trim() || null,
+    area_principal: document.getElementById('f_area').value || null,
+    tipologia: document.getElementById('f_tipologia').value.trim() || null,
+    format: document.getElementById('f_format').value.trim() || null,
+    ubicacio: document.getElementById('f_ubicacio').value.trim() || null,
+    idioma: document.getElementById('f_idioma').value.trim() || null,
+    llegit: document.getElementById('f_llegit').value || null,
+    isbn: document.getElementById('f_isbn').value.trim() || null,
+    preu: document.getElementById('f_preu').value ? parseFloat(document.getElementById('f_preu').value) : null,
+    data_adquisicio: document.getElementById('f_data_adquisicio').value.trim() || null,
+    origen: document.getElementById('f_origen').value.trim() || null,
+    paraules_clau: document.getElementById('f_paraules_clau').value.trim() || null,
+    projecte_recerca: document.getElementById('f_projecte').value.trim() || null,
+    resum: document.getElementById('f_resum').value.trim() || null,
+    comentaris: document.getElementById('f_comentaris').value.trim() || null,
+    updated_at: new Date().toISOString(),
+  };
+
+  if(!payload.titol){ toast('Cal un títol'); return; }
+
+  let error;
+  if(editingId){
+    ({ error } = await sb.from('llibres').update(payload).eq('id', editingId));
+  } else {
+    ({ error } = await sb.from('llibres').insert(payload));
+  }
+
+  if(error){ console.error(error); toast('Error desant el llibre'); return; }
+
+  toast(editingId ? 'Llibre actualitzat' : 'Llibre afegit');
+  closeModal();
+  loadBooks();
+});
+
+document.getElementById('btnDelete').onclick = async () => {
+  if(!editingId) return;
+  if(!confirm('Segur que vols eliminar aquest llibre?')) return;
+  const { error } = await sb.from('llibres').delete().eq('id', editingId);
+  if(error){ toast('Error eliminant'); return; }
+  toast('Llibre eliminat');
+  closeModal();
+  loadBooks();
+};
+
+loadBooks();
+</script>
+</body>
+</html>
