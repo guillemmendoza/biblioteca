@@ -12,6 +12,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
   :root{
     --bg: #F5F1E8;
@@ -255,6 +256,22 @@
   .stamp.synology{ color:#4F6D8C; }
   .stamp.mixed{ color:#7A3B4A; }
 
+  .btn-llegit{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 0.66rem; letter-spacing:0.03em; text-transform:uppercase;
+    padding: 3px 7px; border-radius: 4px; border: 1.5px dashed var(--border);
+    background: transparent; color: var(--text-soft); cursor:pointer;
+    transition: all 0.12s;
+  }
+  .btn-llegit:hover{ border-color: var(--c-historia); color: var(--c-historia); }
+  .btn-llegit.llegit{ background: var(--c-historia); color: #fff; border-color: var(--c-historia); }
+  .grid.list-view .card .btn-llegit{ font-size: 0.58rem; }
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.75rem; color: var(--text-soft);
+    margin-bottom: 12px; min-height: 1.2em;
+  }
+  .results-bar b{ color: var(--text); }
+
   .empty{
     text-align:center; padding: 60px 20px; color: var(--text-soft);
     font-family:'Fraunces',serif; font-size:1.1rem;
@@ -366,6 +383,12 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
       <input type="text" id="searchInput" placeholder="Cerca per títol, autor o paraula clau…">
     </div>
+    <select class="chip" id="sortSelect" style="border-radius:8px; padding: 10px 28px 10px 12px;">
+      <option value="titol">A → Z</option>
+      <option value="autor">Autor</option>
+      <option value="any_publicacio">Any</option>
+      <option value="data_adquisicio">Data adquisició</option>
+    </select>
     <div class="view-toggle">
       <button id="viewGrid" title="Vista de caixetes">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
@@ -375,10 +398,13 @@
       </button>
     </div>
     <button class="btn-outline" id="btnShare">Comparteix</button>
+    <button class="btn-outline" id="btnExport">↓ Excel</button>
     <button class="btn-add" id="btnAdd">+ Afegir llibre</button>
   </div>
 
   <div class="filters" id="filters"></div>
+
+  <div class="results-bar" id="resultsBar"></div>
 
   <div class="grid" id="grid"></div>
   <div class="empty" id="emptyState" style="display:none;">Cap llibre coincideix amb la cerca.</div>
@@ -549,6 +575,7 @@ let ALL_BOOKS = [];
 let editingId = null;
 let activeFilters = { area: null, ubicacio: '', format: '', idioma: '', llegit: '' };
 let searchTerm = '';
+let sortBy = 'titol';
 
 const READONLY = new URLSearchParams(location.search).get('share') === '1';
 let viewMode = localStorage.getItem('biblioteca_view_mode') || 'grid';
@@ -567,6 +594,7 @@ if(READONLY){
   document.getElementById('readonlyBanner').style.display = 'flex';
   document.getElementById('btnAdd').style.display = 'none';
   document.getElementById('btnShare').style.display = 'none';
+  document.getElementById('btnExport').style.display = 'none';
 }
 
 function areaColor(area){
@@ -702,17 +730,38 @@ function stampInfo(ubicacio){
   return {label: ubicacio, cls:'mixed'};
 }
 
+function sortBooks(books){
+  return [...books].sort((a, b) => {
+    const va = (a[sortBy] || '').toString().toLowerCase();
+    const vb = (b[sortBy] || '').toString().toLowerCase();
+    if(!a[sortBy] && b[sortBy]) return 1;
+    if(a[sortBy] && !b[sortBy]) return -1;
+    return va.localeCompare(vb, 'ca');
+  });
+}
+
 function renderGrid(){
   const grid = document.getElementById('grid');
-  const filtered = ALL_BOOKS.filter(matchesFilters);
+  const filtered = sortBooks(ALL_BOOKS.filter(matchesFilters));
+  const total = ALL_BOOKS.length;
+  const n = filtered.length;
+
   grid.innerHTML = '';
-  document.getElementById('emptyState').style.display = filtered.length ? 'none' : 'block';
+  document.getElementById('emptyState').style.display = n ? 'none' : 'block';
+
+  const bar = document.getElementById('resultsBar');
+  if(n === total){
+    bar.innerHTML = `<b>${total}</b> llibres`;
+  } else {
+    bar.innerHTML = `<b>${n}</b> de ${total} llibres`;
+  }
 
   filtered.forEach(b => {
     const card = document.createElement('div');
     card.className = 'card';
     card.style.borderLeftColor = areaColor(b.area_principal);
     const stamp = stampInfo(b.ubicacio);
+    const llegit = b.llegit === 'Sí';
     card.innerHTML = `
       ${stamp ? `<div class="stamp ${stamp.cls}">${stamp.label}</div>` : ''}
       <div class="titol">${escapeHtml(b.titol)}${b.volum ? ` <span class="volum-badge">${escapeHtml(b.volum)}</span>` : ''}</div>
@@ -720,10 +769,19 @@ function renderGrid(){
       <div class="meta">
         ${b.area_principal ? `<span class="tag">${escapeHtml(b.area_principal.split(',')[0])}</span>` : ''}
         ${b.format ? `<span class="tag">${escapeHtml(b.format)}</span>` : ''}
-        ${b.llegit === 'Sí' ? `<span class="tag">Llegit</span>` : ''}
+        ${!READONLY ? `<button class="btn-llegit ${llegit ? 'llegit' : ''}" title="${llegit ? 'Marca com a no llegit' : 'Marca com a llegit'}">${llegit ? '✓ Llegit' : 'Llegit?'}</button>` : (llegit ? '<span class="tag">Llegit</span>' : '')}
       </div>
     `;
-    card.onclick = () => openModal(b);
+    card.querySelector('.btn-llegit')?.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const nouEstat = llegit ? null : 'Sí';
+      const { error } = await sb.from('llibres').update({ llegit: nouEstat, updated_at: new Date().toISOString() }).eq('id', b.id);
+      if(error){ toast('Error actualitzant'); return; }
+      b.llegit = nouEstat;
+      toast(nouEstat ? '✓ Marcat com a llegit' : 'Marcat com a no llegit');
+      renderGrid();
+    });
+    card.onclick = (e) => { if(!e.target.classList.contains('btn-llegit')) openModal(b); };
     grid.appendChild(card);
   });
 }
@@ -785,6 +843,7 @@ document.getElementById('overlay').addEventListener('click', (e) => {
 
 document.getElementById('viewGrid').onclick = () => setViewMode('grid');
 document.getElementById('viewList').onclick = () => setViewMode('list');
+document.getElementById('sortSelect').onchange = (e) => { sortBy = e.target.value; renderGrid(); };
 
 document.getElementById('btnShare').onclick = async () => {
   const url = location.origin + location.pathname + '?share=1';
@@ -796,7 +855,24 @@ document.getElementById('btnShare').onclick = async () => {
   }
 };
 
-async function lookupIsbn(){
+document.getElementById('btnExport').onclick = () => {
+  const cols = ['titol','subtitol','volum','autor','autor_secundari','any_publicacio','editorial','isbn',
+    'area_principal','tipologia','paraules_clau','resum','format','ubicacio','idioma','llegit',
+    'data_adquisicio','origen','preu','comentaris','projecte_recerca'];
+  const headers = ['Títol','Subtítol','Volum','Autor','Autor secundari / Editor','Any_Publicació','Editorial',
+    'ISBN/ISSN','Àrea principal','Tipologia / Especialitat','Paraules clau','Resum','Format','Ubicació',
+    'Idioma','Llegit','Data d\'adquisició','Origen','Preu','Comentaris personals / Notes','Projecte / Recerca associada'];
+
+  const sorted = sortBooks(ALL_BOOKS);
+  const data = [headers, ...sorted.map(b => cols.map(c => b[c] ?? ''))];
+  const ws = XLSX.utils.aoa_to_sheet(data);
+  ws['!cols'] = headers.map(() => ({ wch: 22 }));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Classificació');
+  const date = new Date().toISOString().slice(0,10);
+  XLSX.writeFile(wb, `Biblioteca_Guillem_${date}.xlsx`);
+  toast('Excel exportat');
+};
   const raw = document.getElementById('f_isbn_lookup').value.trim();
   const isbn = raw.replace(/[^0-9Xx]/g, '');
   const statusEl = document.getElementById('isbnLookupStatus');
@@ -933,6 +1009,18 @@ document.getElementById('bookForm').addEventListener('submit', async (e) => {
   };
 
   if(!payload.titol){ toast('Cal un títol'); return; }
+
+  if(!editingId){
+    const titolNorm = payload.titol.toLowerCase().trim();
+    const dupTitol = ALL_BOOKS.find(b => b.titol?.toLowerCase().trim() === titolNorm);
+    const dupIsbn = payload.isbn ? ALL_BOOKS.find(b => b.isbn && b.isbn.replace(/[^0-9Xx]/g,'') === payload.isbn.replace(/[^0-9Xx]/g,'')) : null;
+    if(dupTitol || dupIsbn){
+      const msg = dupIsbn
+        ? `Ja existeix un llibre amb aquest ISBN: "${dupIsbn.titol}". Vols afegir-lo igualment?`
+        : `Ja existeix un llibre amb un títol molt similar: "${dupTitol.titol}". Vols afegir-lo igualment?`;
+      if(!confirm(msg)) return;
+    }
+  }
 
   let error;
   if(editingId){
