@@ -272,6 +272,42 @@
   }
   .results-bar b{ color: var(--text); }
 
+  .stats-panel{
+    background: var(--bg-card); border: 1.5px solid var(--border);
+    border-radius: 10px; padding: 22px 24px 24px; margin-bottom: 24px;
+  }
+  .stats-panel-header{
+    display:flex; justify-content:space-between; align-items:center;
+    margin-bottom: 20px;
+  }
+  .stats-panel-header h2{
+    font-family:'Fraunces',serif; font-size:1.2rem; font-weight:600; margin:0;
+  }
+  .stats-close{
+    background:none; border:none; font-size:1rem; cursor:pointer;
+    color:var(--text-soft); padding: 4px 8px; border-radius:4px;
+  }
+  .stats-close:hover{ background: var(--accent-soft); }
+  .stats-grid{
+    display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 18px;
+  }
+  .stats-block h3{
+    font-family:'IBM Plex Mono', monospace; font-size:0.7rem; text-transform:uppercase;
+    letter-spacing:0.06em; color:var(--text-soft); margin: 0 0 10px;
+  }
+  .stats-bar-row{
+    display:flex; align-items:center; gap:8px; margin-bottom:5px; font-size:0.82rem;
+  }
+  .stats-bar-label{ min-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex-shrink:0; }
+  .stats-bar-track{ flex:1; height:6px; background:var(--accent-soft); border-radius:3px; overflow:hidden; }
+  .stats-bar-fill{ height:100%; border-radius:3px; }
+  .stats-bar-n{ font-family:'IBM Plex Mono',monospace; font-size:0.72rem; color:var(--text-soft); min-width:26px; text-align:right; }
+  .stats-numbers{ display:flex; gap:22px; flex-wrap:wrap; }
+  .stats-num{ text-align:center; }
+  .stats-num b{ font-family:'Fraunces',serif; font-size:1.5rem; display:block; }
+  .stats-num span{ font-size:0.74rem; color:var(--text-soft); font-family:'IBM Plex Mono',monospace; text-transform:uppercase; letter-spacing:0.04em; }
+
   .empty{
     text-align:center; padding: 60px 20px; color: var(--text-soft);
     font-family:'Fraunces',serif; font-size:1.1rem;
@@ -398,8 +434,17 @@
       </button>
     </div>
     <button class="btn-outline" id="btnShare">Comparteix</button>
+    <button class="btn-outline" id="btnStats">Estadístiques</button>
     <button class="btn-outline" id="btnExport">↓ Excel</button>
     <button class="btn-add" id="btnAdd">+ Afegir llibre</button>
+  </div>
+
+  <div class="stats-panel" id="statsPanel" style="display:none;">
+    <div class="stats-panel-header">
+      <h2>Estadístiques</h2>
+      <button class="stats-close" id="btnStatsClose">✕</button>
+    </div>
+    <div class="stats-grid" id="statsGrid"></div>
   </div>
 
   <div class="filters" id="filters"></div>
@@ -854,6 +899,83 @@ document.getElementById('btnShare').onclick = async () => {
     prompt('Copia aquest enllaç:', url);
   }
 };
+
+document.getElementById('btnStats').onclick = () => {
+  const panel = document.getElementById('statsPanel');
+  const visible = panel.style.display !== 'none';
+  panel.style.display = visible ? 'none' : 'block';
+  if(!visible) renderStats();
+};
+document.getElementById('btnStatsClose').onclick = () => {
+  document.getElementById('statsPanel').style.display = 'none';
+};
+
+function countBy(field, splitOn){
+  const map = {};
+  ALL_BOOKS.forEach(b => {
+    const v = b[field];
+    if(!v) return;
+    const parts = splitOn ? v.split(splitOn).map(p=>p.trim()) : [v];
+    parts.forEach(p => { if(p) map[p] = (map[p]||0) + 1; });
+  });
+  return Object.entries(map).sort((a,b) => b[1]-a[1]);
+}
+
+function renderStats(){
+  const grid = document.getElementById('statsGrid');
+  const total = ALL_BOOKS.length;
+  const llegits = ALL_BOOKS.filter(b => b.llegit === 'Sí').length;
+  const casa = ALL_BOOKS.filter(b => (b.ubicacio||'').includes('Guillem')).length;
+  const digital = ALL_BOOKS.filter(b => (b.ubicacio||'').includes('Synology')).length;
+  const ambdos = ALL_BOOKS.filter(b => (b.ubicacio||'').includes('Guillem') && (b.ubicacio||'').includes('Synology')).length;
+
+  const byArea = countBy('area_principal', ',');
+  const byIdioma = countBy('idioma', ',');
+  const byFormat = countBy('format', ',');
+
+  // Adquisicions per any
+  const byAny = {};
+  ALL_BOOKS.forEach(b => {
+    const d = b.data_adquisicio;
+    if(!d) return;
+    const y = String(d).slice(0,4);
+    if(/^\d{4}$/.test(y)) byAny[y] = (byAny[y]||0) + 1;
+  });
+  const byAnyArr = Object.entries(byAny).sort((a,b) => a[0].localeCompare(b[0]));
+
+  function barBlock(title, data, colorFn, limit=8){
+    const max = data[0]?.[1] || 1;
+    const rows = data.slice(0,limit).map(([label, n]) =>
+      `<div class="stats-bar-row">
+        <span class="stats-bar-label" title="${escapeHtml(label)}">${escapeHtml(label)}</span>
+        <div class="stats-bar-track"><div class="stats-bar-fill" style="width:${Math.round(n/max*100)}%;background:${colorFn(label)}"></div></div>
+        <span class="stats-bar-n">${n}</span>
+      </div>`
+    ).join('');
+    return `<div class="stats-block"><h3>${title}</h3>${rows}</div>`;
+  }
+
+  grid.innerHTML = `
+    <div class="stats-block">
+      <h3>Resum</h3>
+      <div class="stats-numbers">
+        <div class="stats-num"><b>${total}</b><span>Total</span></div>
+        <div class="stats-num"><b>${llegits}</b><span>Llegits</span></div>
+        <div class="stats-num"><b>${total-llegits}</b><span>Pendents</span></div>
+        <div class="stats-num"><b>${Math.round(llegits/total*100)}%</b><span>% llegit</span></div>
+      </div>
+      <div style="margin-top:14px;" class="stats-numbers">
+        <div class="stats-num"><b>${casa}</b><span>A casa</span></div>
+        <div class="stats-num"><b>${digital}</b><span>Synology</span></div>
+        <div class="stats-num"><b>${ambdos}</b><span>Tots dos</span></div>
+      </div>
+    </div>
+    ${barBlock('Per àrea', byArea, label => areaColor(label))}
+    ${barBlock('Per idioma', byIdioma, () => 'var(--c-periodisme)', 8)}
+    ${barBlock('Per format', byFormat, () => 'var(--accent)', 6)}
+    ${byAnyArr.length ? barBlock('Adquisicions per any', byAnyArr, () => 'var(--c-historia)', 10) : ''}
+  `;
+}
 
 document.getElementById('btnExport').onclick = () => {
   const cols = ['titol','subtitol','volum','autor','autor_secundari','any_publicacio','editorial','isbn',
