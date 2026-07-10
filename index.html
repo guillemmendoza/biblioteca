@@ -995,6 +995,8 @@ document.getElementById('btnExport').onclick = () => {
   XLSX.writeFile(wb, `Biblioteca_Guillem_${date}.xlsx`);
   toast('Excel exportat');
 };
+
+async function lookupIsbn(){
   const raw = document.getElementById('f_isbn_lookup').value.trim();
   const isbn = raw.replace(/[^0-9Xx]/g, '');
   const statusEl = document.getElementById('isbnLookupStatus');
