@@ -336,6 +336,24 @@
   }
   .isbn-lookup label{ margin-bottom:6px; }
 
+  #importSummary{ font-size:0.88rem; margin-bottom:12px; line-height:1.5; }
+  #importSummary b{ color: var(--accent); }
+  .import-preview{
+    max-height: 260px; overflow-y:auto; border:1px solid var(--border);
+    border-radius:8px; margin-bottom:6px;
+  }
+  .import-row{
+    display:flex; justify-content:space-between; gap:10px;
+    padding: 7px 12px; font-size:0.82rem; border-bottom:1px solid var(--border);
+  }
+  .import-row:last-child{ border-bottom:none; }
+  .import-row .ir-titol{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .import-row .ir-flag{
+    font-family:'IBM Plex Mono',monospace; font-size:0.66rem; text-transform:uppercase;
+    flex-shrink:0; color: var(--text-soft);
+  }
+  .import-row.dup .ir-flag{ color:#7A3B4A; }
+
   .form-grid{
     display:grid; grid-template-columns: 1fr 1fr; gap: 12px 14px;
   }
@@ -435,6 +453,8 @@
     </div>
     <button class="btn-outline" id="btnShare">Comparteix</button>
     <button class="btn-outline" id="btnStats">Estadístiques</button>
+    <button class="btn-outline" id="btnImport">↑ Importar Excel</button>
+    <input type="file" id="importFile" accept=".xlsx,.xls" style="display:none;">
     <button class="btn-outline" id="btnExport">↓ Excel</button>
     <button class="btn-add" id="btnAdd">+ Afegir llibre</button>
   </div>
@@ -582,6 +602,18 @@
   </div>
 </div>
 
+<div class="overlay" id="importOverlay">
+  <div class="modal">
+    <h2>Importar des d'Excel</h2>
+    <div id="importSummary"></div>
+    <div id="importPreview" class="import-preview"></div>
+    <div class="modal-actions" style="justify-content:flex-end;">
+      <button type="button" class="btn btn-secondary" id="btnImportCancel">Cancel·la</button>
+      <button type="button" class="btn btn-primary" id="btnImportConfirm">Importa</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <div class="overlay" id="scannerOverlay">
@@ -640,6 +672,7 @@ if(READONLY){
   document.getElementById('btnAdd').style.display = 'none';
   document.getElementById('btnShare').style.display = 'none';
   document.getElementById('btnExport').style.display = 'none';
+  document.getElementById('btnImport').style.display = 'none';
 }
 
 function areaColor(area){
@@ -976,6 +1009,166 @@ function renderStats(){
     ${byAnyArr.length ? barBlock('Adquisicions per any', byAnyArr, () => 'var(--c-historia)', 10) : ''}
   `;
 }
+
+// --- Importar des d'Excel ---
+const HEADER_ALIASES = {
+  titol: ['titol','title'],
+  subtitol: ['subtitol','subtitle'],
+  volum: ['volum','volume','vol'],
+  autor: ['autor','author','autors'],
+  autor_secundari: ['autor secundari / editor','autor secundari','editor'],
+  any_publicacio: ['any_publicacio','any de publicacio','any publicacio','any'],
+  editorial: ['editorial','publisher'],
+  isbn: ['isbn/issn','isbn','issn'],
+  area_principal: ['area principal','area'],
+  tipologia: ['tipologia / especialitat','tipologia','especialitat'],
+  paraules_clau: ['paraules clau','keywords'],
+  resum: ['resum','summary','description'],
+  format: ['format'],
+  ubicacio: ['ubicacio','location'],
+  idioma: ['idioma','language'],
+  llegit: ['llegit','read'],
+  data_adquisicio: ["data d'adquisicio", "data d'adquisicio/incorporacio", 'data adquisicio'],
+  origen: ['origen','source'],
+  preu: ['preu','price'],
+  comentaris: ['comentaris personals / notes','comentaris','notes'],
+  projecte_recerca: ['projecte / recerca associada','projecte','recerca associada'],
+};
+
+function normalizeHeader(h){
+  return String(h).trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+}
+
+function buildHeaderMap(headerRow){
+  const map = {};
+  headerRow.forEach((raw, idx) => {
+    const norm = normalizeHeader(raw || '');
+    for(const [field, aliases] of Object.entries(HEADER_ALIASES)){
+      if(map[field] !== undefined) continue;
+      if(aliases.some(a => normalizeHeader(a) === norm)){
+        map[field] = idx;
+      }
+    }
+  });
+  return map;
+}
+
+let pendingImportRows = [];
+
+document.getElementById('btnImport').onclick = () => document.getElementById('importFile').click();
+
+document.getElementById('importFile').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if(!file) return;
+  try{
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, { type: 'array' });
+    const sheetName = wb.SheetNames.find(n => normalizeHeader(n) === 'classificacio') || wb.SheetNames[0];
+    const ws = wb.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: '' });
+
+    if(!rows.length){ toast('El full sembla buit'); return; }
+
+    const headerMap = buildHeaderMap(rows[0]);
+    if(headerMap.titol === undefined){
+      toast('No s\'ha trobat cap columna de títol. Revisa les capçaleres.');
+      return;
+    }
+
+    const existingTitles = new Set(ALL_BOOKS.map(b => b.titol?.toLowerCase().trim()));
+    pendingImportRows = [];
+
+    for(let i=1; i<rows.length; i++){
+      const r = rows[i];
+      const get = (field) => headerMap[field] !== undefined ? String(r[headerMap[field]] ?? '').trim() : '';
+      const titol = get('titol');
+      if(!titol) continue;
+      const any = get('any_publicacio');
+      const preu = get('preu');
+      pendingImportRows.push({
+        titol,
+        subtitol: get('subtitol') || null,
+        volum: get('volum') || null,
+        autor: get('autor') || null,
+        autor_secundari: get('autor_secundari') || null,
+        any_publicacio: any && !isNaN(parseInt(any)) ? parseInt(any) : null,
+        editorial: get('editorial') || null,
+        isbn: get('isbn') || null,
+        area_principal: get('area_principal') || null,
+        tipologia: get('tipologia') || null,
+        paraules_clau: get('paraules_clau') || null,
+        resum: get('resum') || null,
+        format: get('format') || null,
+        ubicacio: get('ubicacio') || null,
+        idioma: get('idioma') || null,
+        llegit: get('llegit') || null,
+        data_adquisicio: get('data_adquisicio') || null,
+        origen: get('origen') || null,
+        preu: preu && !isNaN(parseFloat(preu)) ? parseFloat(preu) : null,
+        comentaris: get('comentaris') || null,
+        projecte_recerca: get('projecte_recerca') || null,
+        _isDup: existingTitles.has(titol.toLowerCase().trim()),
+      });
+    }
+
+    if(!pendingImportRows.length){ toast('No s\'ha trobat cap llibre amb títol al full.'); return; }
+
+    const dups = pendingImportRows.filter(r => r._isDup).length;
+    document.getElementById('importSummary').innerHTML =
+      `S'han trobat <b>${pendingImportRows.length}</b> llibres al fitxer.` +
+      (dups ? ` <b>${dups}</b> ja semblen existir al catàleg (mateix títol) — es marquen com a possible duplicat, però s'importaran igualment si continues.` : '');
+    document.getElementById('importPreview').innerHTML = pendingImportRows.map(r =>
+      `<div class="import-row ${r._isDup ? 'dup' : ''}">
+        <span class="ir-titol">${escapeHtml(r.titol)}</span>
+        <span class="ir-flag">${r._isDup ? 'possible duplicat' : 'nou'}</span>
+      </div>`
+    ).join('');
+    document.getElementById('importOverlay').classList.add('open');
+  }catch(err){
+    console.error(err);
+    toast('Error llegint el fitxer Excel');
+  }finally{
+    e.target.value = '';
+  }
+});
+
+document.getElementById('btnImportCancel').onclick = () => {
+  document.getElementById('importOverlay').classList.remove('open');
+  pendingImportRows = [];
+};
+document.getElementById('importOverlay').addEventListener('click', (e) => {
+  if(e.target.id === 'importOverlay'){
+    document.getElementById('importOverlay').classList.remove('open');
+    pendingImportRows = [];
+  }
+});
+
+document.getElementById('btnImportConfirm').onclick = async () => {
+  if(!pendingImportRows.length) return;
+  const btn = document.getElementById('btnImportConfirm');
+  btn.disabled = true; btn.textContent = 'Important…';
+
+  const toInsert = pendingImportRows.map(({_isDup, ...rest}) => rest);
+  const batchSize = 100;
+  let inserted = 0;
+  try{
+    for(let i=0; i<toInsert.length; i+=batchSize){
+      const batch = toInsert.slice(i, i+batchSize);
+      const { error } = await sb.from('llibres').insert(batch);
+      if(error){ console.error(error); toast('Error important alguns llibres'); break; }
+      inserted += batch.length;
+    }
+    toast(`${inserted} llibres importats`);
+    document.getElementById('importOverlay').classList.remove('open');
+    pendingImportRows = [];
+    loadBooks();
+  }catch(err){
+    console.error(err);
+    toast('Error important el fitxer');
+  }finally{
+    btn.disabled = false; btn.textContent = 'Importa';
+  }
+};
 
 document.getElementById('btnExport').onclick = () => {
   const cols = ['titol','subtitol','volum','autor','autor_secundari','any_publicacio','editorial','isbn',
