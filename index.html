@@ -673,7 +673,11 @@
         </div>
         <div>
           <label>Autor</label>
-          <input type="text" id="f_autor" placeholder="Cognom, Nom">
+          <div style="display:flex; gap:6px;">
+            <input type="text" id="f_autor" placeholder="Cognom, Nom" style="flex:1;">
+            <button type="button" class="btn btn-secondary" id="btnLookupAutor" title="Verifica el cognom i nom a Wikidata" aria-label="Verifica l'autor" style="padding:0 10px;">🔎</button>
+          </div>
+          <div id="autorLookupStatus" style="font-size:0.72rem; color:var(--text-soft); margin-top:3px; min-height:1em;"></div>
         </div>
         <div>
           <label>Autor secundari / Editor</label>
@@ -1193,6 +1197,7 @@ function closeModal(){
   document.getElementById('bookForm').reset();
   document.getElementById('f_isbn_lookup').value = '';
   document.getElementById('isbnLookupStatus').textContent = '';
+  document.getElementById('autorLookupStatus').textContent = '';
   closeScanner();
 }
 
@@ -1529,6 +1534,57 @@ function toCognomNom(name){
   // sense encertar-la malament, així que el deixem tal qual perquè ho revisis a mà.
   return n;
 }
+
+async function lookupAuthorWikidata(name){
+  const q = name.trim();
+  if(!q) return null;
+  try{
+    const searchRes = await fetch(`https://www.wikidata.org/w/api.php?action=wbsearchentities&search=${encodeURIComponent(q)}&language=ca&format=json&origin=*&type=item&limit=1`);
+    const searchJson = await searchRes.json();
+    const hit = searchJson.search && searchJson.search[0];
+    if(!hit) return null;
+
+    const sparql = `SELECT ?familyNameLabel ?givenNameLabel WHERE {
+      wd:${hit.id} wdt:P734 ?familyName .
+      wd:${hit.id} wdt:P735 ?givenName .
+      SERVICE wikibase:label { bd:serviceParam wikibase:language "ca,es,en". }
+    } LIMIT 1`;
+    const sparqlRes = await fetch(`https://query.wikidata.org/sparql?query=${encodeURIComponent(sparql)}&format=json`);
+    const sparqlJson = await sparqlRes.json();
+    const b = sparqlJson.results && sparqlJson.results.bindings && sparqlJson.results.bindings[0];
+    if(!b) return null;
+    return { cognom: b.familyNameLabel.value, nom: b.givenNameLabel.value };
+  }catch(err){
+    console.error(err);
+    return null;
+  }
+}
+
+document.getElementById('btnLookupAutor').onclick = async () => {
+  const field = document.getElementById('f_autor');
+  const statusEl = document.getElementById('autorLookupStatus');
+  const raw = field.value.trim();
+  if(!raw){ statusEl.textContent = 'Escriu un nom primer.'; return; }
+
+  const btn = document.getElementById('btnLookupAutor');
+  btn.disabled = true;
+  statusEl.textContent = 'Consultant Wikidata…';
+
+  const segments = raw.split(';').map(s => s.trim()).filter(Boolean);
+  let trobats = 0;
+  const results = [];
+  for(const seg of segments){
+    if(seg.includes(',')){ results.push(seg); continue; }
+    const found = await lookupAuthorWikidata(seg);
+    if(found){ results.push(`${found.cognom}, ${found.nom}`); trobats++; }
+    else results.push(toCognomNom(seg));
+  }
+  field.value = results.join('; ');
+  btn.disabled = false;
+  statusEl.textContent = trobats
+    ? `Verificat a Wikidata (${trobats}/${segments.length}) ✓`
+    : 'No trobat a Wikidata — s\'ha aplicat la millor suposició.';
+};
 
 async function lookupIsbn(){
   const raw = document.getElementById('f_isbn_lookup').value.trim();
