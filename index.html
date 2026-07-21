@@ -189,43 +189,41 @@
     overflow: hidden;
     box-shadow: 0 1px 2px rgba(43,38,32,0.05);
   }
-  .grid.list-view .card{
-    display: grid;
-    grid-template-columns: 92px minmax(0,1fr) 180px 190px 16px;
-    align-items: center;
-    column-gap: 14px;
-    min-height: auto;
+
+  .list-row{
+    display:flex; align-items:center; gap:11px;
     padding: 11px 14px;
-    border-left: none;
-    border-radius: 0;
-    background: transparent;
-    box-shadow: none;
+    cursor:pointer;
   }
-  .grid.list-view .card + .card{ border-top: 1px solid var(--border-soft); }
-  .grid.list-view .card::after{
-    content: '›'; color: var(--text-faint); font-size: 1.2rem; font-weight:300;
-    text-align:center; line-height:1;
+  .list-row + .list-row{ border-top: 1px solid var(--border-soft); }
+  .list-row:hover, .list-row:focus-visible{ background: var(--accent-soft); }
+  .list-row:active{ background: var(--accent-soft); }
+
+  .lr-dot{
+    width:10px; height:10px; border-radius:50%; flex-shrink:0;
   }
-  .grid.list-view .card .stamp{
-    position: static; transform:none; border:none; padding:0;
-    font-size: 0.6rem; justify-self:start;
+  .lr-main{ flex: 1 1 auto; min-width: 0; }
+  .lr-title{
+    font-family:'Fraunces', serif; font-weight:600; font-size:0.95rem;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   }
-  .grid.list-view .card .titol{
-    padding-right: 0; margin: 0; font-size: 0.92rem; font-weight:600;
-    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  .lr-title .volum-badge{ font-size: 0.56rem; }
+  .lr-sub{
+    font-size:0.78rem; color: var(--text-soft); margin-top:2px;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   }
-  .grid.list-view .card .autor{
-    margin: 0; font-size: 0.82rem;
-    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  .lr-trailing{ display:flex; align-items:center; gap:10px; flex-shrink:0; }
+  .lr-llegit{
+    width:26px; height:26px; border-radius:50%; border:none;
+    background: rgba(43,38,32,0.07); color: var(--text-faint);
+    display:flex; align-items:center; justify-content:center;
+    font-size:0.72rem; font-weight:700; cursor:pointer;
+    transition: background 0.15s, color 0.15s, transform 0.08s;
+    flex-shrink:0;
   }
-  .grid.list-view .card .meta{
-    margin-top:0; flex-wrap: nowrap; justify-content:flex-end;
-    overflow:hidden;
-  }
-  .grid.list-view .card .meta .tag{
-    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width: 100px;
-  }
-  .grid.list-view .card:hover{ transform:none; box-shadow:none; background: var(--accent-soft); }
+  .lr-llegit:active{ transform: scale(0.88); }
+  .lr-llegit.llegit{ background: var(--c-historia); color:#fff; }
+  .lr-chevron{ color: var(--text-faint); font-size:1.2rem; font-weight:300; line-height:1; }
 
   /* Segmented control */
   .view-toggle{
@@ -296,7 +294,6 @@
     background: var(--accent-soft); color: var(--accent);
     padding: 2px 7px; border-radius: var(--r-pill); white-space:nowrap;
   }
-  .grid.list-view .card .volum-badge{ font-size: 0.58rem; }
   .card .autor{
     font-size:0.84rem; color: var(--text-soft); margin-bottom: 10px;
   }
@@ -330,7 +327,6 @@
   }
   .btn-llegit:active{ transform: scale(0.94); }
   .btn-llegit.llegit{ background: var(--c-historia); color: #fff; }
-  .grid.list-view .card .btn-llegit{ font-size: 0.62rem; }
 
   .results-bar{
     font-family: var(--sys);
@@ -546,8 +542,6 @@
     .form-grid{ grid-template-columns: 1fr; }
     .wrap{ padding: 0 16px 90px; }
     header{ margin: 0 -16px 18px; padding: max(14px, env(safe-area-inset-top)) 16px 14px; }
-    .grid.list-view .card{ grid-template-columns: 74px minmax(0,1fr) 14px; column-gap:10px; }
-    .grid.list-view .card .autor, .grid.list-view .card .meta{ display:none; }
   }
 </style>
 </head>
@@ -1015,43 +1009,86 @@ function renderGrid(){
   }
 
   filtered.forEach(b => {
-    const card = document.createElement('div');
-    card.className = 'card';
-    card.style.borderLeftColor = areaColor(b.area_principal);
-    card.setAttribute('role', 'button');
-    card.setAttribute('tabindex', '0');
-    card.setAttribute('aria-label', `${b.titol}, de ${formatAuthor(b.autor)}`);
-    const stamp = stampInfo(b.ubicacio);
-    const llegit = b.llegit === 'Sí';
-    card.innerHTML = `
-      ${stamp ? `<div class="stamp ${stamp.cls}">${stamp.label}</div>` : ''}
-      <div class="titol">${escapeHtml(b.titol)}${b.volum ? ` <span class="volum-badge">${escapeHtml(b.volum)}</span>` : ''}</div>
-      <div class="autor" title="${escapeHtml(b.autor || '')}">${escapeHtml(formatAuthor(b.autor))}</div>
-      <div class="meta">
-        ${b.area_principal ? `<span class="tag">${escapeHtml(b.area_principal.split(',')[0])}</span>` : ''}
-        ${b.format ? `<span class="tag">${escapeHtml(b.format)}</span>` : ''}
-        ${!READONLY ? `<button type="button" class="btn-llegit ${llegit ? 'llegit' : ''}" aria-label="${llegit ? 'Marca com a no llegit' : 'Marca com a llegit'}" title="${llegit ? 'Marca com a no llegit' : 'Marca com a llegit'}">${llegit ? '✓ Llegit' : 'Llegit?'}</button>` : (llegit ? '<span class="tag">Llegit</span>' : '')}
-      </div>
-    `;
-    card.querySelector('.btn-llegit')?.addEventListener('click', async (e) => {
-      e.stopPropagation();
-      const btn = e.currentTarget;
-      btn.disabled = true;
-      const nouEstat = llegit ? null : 'Sí';
-      const { error } = await sb.from('llibres').update({ llegit: nouEstat, updated_at: new Date().toISOString() }).eq('id', b.id);
-      if(error){ toast('Error actualitzant', 'error'); btn.disabled = false; return; }
-      b.llegit = nouEstat;
-      toast(nouEstat ? '✓ Marcat com a llegit' : 'Marcat com a no llegit');
-      renderGrid();
-    });
-    card.addEventListener('click', (e) => { if(!e.target.classList.contains('btn-llegit')) openModal(b); });
-    card.addEventListener('keydown', (e) => {
-      if((e.key === 'Enter' || e.key === ' ') && !e.target.classList.contains('btn-llegit')){
-        e.preventDefault(); openModal(b);
-      }
-    });
-    grid.appendChild(card);
+    const el = viewMode === 'list' ? buildListRow(b) : buildGridCard(b);
+    grid.appendChild(el);
   });
+}
+
+function attachLlegitHandler(btn, b, llegit){
+  btn.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    btn.disabled = true;
+    const nouEstat = llegit ? null : 'Sí';
+    const { error } = await sb.from('llibres').update({ llegit: nouEstat, updated_at: new Date().toISOString() }).eq('id', b.id);
+    if(error){ toast('Error actualitzant', 'error'); btn.disabled = false; return; }
+    b.llegit = nouEstat;
+    toast(nouEstat ? '✓ Marcat com a llegit' : 'Marcat com a no llegit');
+    renderGrid();
+  });
+}
+
+function attachCardOpen(el, b, skipSelector){
+  el.addEventListener('click', (e) => { if(!e.target.closest(skipSelector)) openModal(b); });
+  el.addEventListener('keydown', (e) => {
+    if((e.key === 'Enter' || e.key === ' ') && !e.target.closest(skipSelector)){
+      e.preventDefault(); openModal(b);
+    }
+  });
+}
+
+function buildGridCard(b){
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.style.borderLeftColor = areaColor(b.area_principal);
+  card.setAttribute('role', 'button');
+  card.setAttribute('tabindex', '0');
+  card.setAttribute('aria-label', `${b.titol}, de ${formatAuthor(b.autor)}`);
+  const stamp = stampInfo(b.ubicacio);
+  const llegit = b.llegit === 'Sí';
+  card.innerHTML = `
+    ${stamp ? `<div class="stamp ${stamp.cls}">${stamp.label}</div>` : ''}
+    <div class="titol">${escapeHtml(b.titol)}${b.volum ? ` <span class="volum-badge">${escapeHtml(b.volum)}</span>` : ''}</div>
+    <div class="autor" title="${escapeHtml(b.autor || '')}">${escapeHtml(formatAuthor(b.autor))}</div>
+    <div class="meta">
+      ${b.area_principal ? `<span class="tag">${escapeHtml(b.area_principal.split(',')[0])}</span>` : ''}
+      ${b.format ? `<span class="tag">${escapeHtml(b.format)}</span>` : ''}
+      ${!READONLY ? `<button type="button" class="btn-llegit ${llegit ? 'llegit' : ''}" aria-label="${llegit ? 'Marca com a no llegit' : 'Marca com a llegit'}" title="${llegit ? 'Marca com a no llegit' : 'Marca com a llegit'}">${llegit ? '✓ Llegit' : 'Llegit?'}</button>` : (llegit ? '<span class="tag">Llegit</span>' : '')}
+    </div>
+  `;
+  const llegitBtn = card.querySelector('.btn-llegit');
+  if(llegitBtn) attachLlegitHandler(llegitBtn, b, llegit);
+  attachCardOpen(card, b, '.btn-llegit');
+  return card;
+}
+
+function buildListRow(b){
+  const row = document.createElement('div');
+  row.className = 'list-row';
+  row.setAttribute('role', 'button');
+  row.setAttribute('tabindex', '0');
+  row.setAttribute('aria-label', `${b.titol}, de ${formatAuthor(b.autor)}`);
+  const llegit = b.llegit === 'Sí';
+  const stamp = stampInfo(b.ubicacio);
+
+  const subParts = [formatAuthor(b.autor)];
+  if(b.format) subParts.push(b.format.split(',')[0].trim());
+  if(stamp) subParts.push(stamp.label);
+
+  row.innerHTML = `
+    <span class="lr-dot" style="background:${areaColor(b.area_principal)}"></span>
+    <div class="lr-main">
+      <div class="lr-title">${escapeHtml(b.titol)}${b.volum ? ` <span class="volum-badge">${escapeHtml(b.volum)}</span>` : ''}</div>
+      <div class="lr-sub">${subParts.map(escapeHtml).join(' · ')}</div>
+    </div>
+    <div class="lr-trailing">
+      ${!READONLY ? `<button type="button" class="lr-llegit ${llegit ? 'llegit' : ''}" aria-label="${llegit ? 'Marca com a no llegit' : 'Marca com a llegit'}" title="${llegit ? 'Marca com a no llegit' : 'Marca com a llegit'}">✓</button>` : (llegit ? '<span class="lr-llegit llegit" aria-hidden="true">✓</span>' : '')}
+      <span class="lr-chevron">›</span>
+    </div>
+  `;
+  const llegitBtn = row.querySelector('.lr-llegit:not([aria-hidden])');
+  if(llegitBtn && !READONLY) attachLlegitHandler(llegitBtn, b, llegit);
+  attachCardOpen(row, b, '.lr-llegit');
+  return row;
 }
 
 function escapeHtml(s){
