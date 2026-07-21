@@ -248,6 +248,7 @@
   }
   .btn-outline:hover{ background: var(--border-soft); }
   .btn-outline:active{ transform: scale(0.96); }
+  .btn-outline.active-outline{ background: var(--text); color: var(--bg); }
 
   .readonly-banner{
     background: var(--accent-soft);
@@ -255,6 +256,19 @@
     padding: 10px 16px; border-radius: var(--r-md); margin-bottom: 16px;
     display:flex; align-items:center; gap:8px;
   }
+
+  .filter-badge{
+    display:inline-flex; align-items:center; justify-content:center;
+    min-width:16px; height:16px; padding: 0 4px; margin-left:6px;
+    background: var(--c-politica); color:#fff; border-radius:var(--r-pill);
+    font-size:0.62rem; font-weight:700;
+  }
+  .filters-panel{
+    margin-bottom: 6px;
+    animation: filtersDown 0.18s ease;
+  }
+  @keyframes filtersDown{ from{ opacity:0; transform: translateY(-6px); } to{ opacity:1; transform:translateY(0); } }
+
   .card{
     background: var(--bg-card);
     border: none;
@@ -559,6 +573,7 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
       </button>
     </div>
+    <button class="btn-outline" id="btnFilters">Filtres<span class="filter-badge" id="filterBadge" style="display:none;"></span></button>
     <button class="btn-outline" id="btnShare">Comparteix</button>
     <button class="btn-outline" id="btnStats">Estadístiques</button>
     <button class="btn-outline" id="btnImport">↑ Importar Excel</button>
@@ -575,7 +590,9 @@
     <div class="stats-grid" id="statsGrid"></div>
   </div>
 
-  <div class="filters" id="filters"></div>
+  <div class="filters-panel" id="filtersPanel" style="display:none;">
+    <div class="filters" id="filters"></div>
+  </div>
 
   <div class="results-bar" id="resultsBar"></div>
 
@@ -904,6 +921,8 @@ function renderFilters(){
   el.appendChild(makeSelect('idioma', 'Idioma', idiomes));
   el.appendChild(makeSelect('llegit', 'Llegit', ['Sí','No']));
 
+  updateFilterBadge();
+
   const clear = document.createElement('div');
   clear.className = 'clear-filters';
   clear.textContent = 'Neteja filtres';
@@ -1102,6 +1121,25 @@ document.getElementById('btnStats').onclick = () => {
 document.getElementById('btnStatsClose').onclick = () => {
   document.getElementById('statsPanel').style.display = 'none';
 };
+
+document.getElementById('btnFilters').onclick = () => {
+  const panel = document.getElementById('filtersPanel');
+  const visible = panel.style.display !== 'none';
+  panel.style.display = visible ? 'none' : 'block';
+  document.getElementById('btnFilters').classList.toggle('active-outline', !visible);
+};
+
+function updateFilterBadge(){
+  let n = 0;
+  if(activeFilters.area) n++;
+  if(activeFilters.ubicacio) n++;
+  if(activeFilters.format) n++;
+  if(activeFilters.idioma) n++;
+  if(activeFilters.llegit) n++;
+  const badge = document.getElementById('filterBadge');
+  badge.textContent = n;
+  badge.style.display = n > 0 ? 'inline-flex' : 'none';
+}
 
 function countBy(field, splitOn){
   const map = {};
