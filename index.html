@@ -341,41 +341,52 @@
 
   .stats-panel{
     background: var(--bg-card); border: none;
-    border-radius: var(--r-lg); padding: 22px 22px 24px; margin-bottom: 24px;
+    border-radius: var(--r-lg); padding: 20px 20px 22px; margin-bottom: 22px;
     box-shadow: 0 1px 2px rgba(43,38,32,0.05), 0 1px 8px rgba(43,38,32,0.04);
   }
   .stats-panel-header{
     display:flex; justify-content:space-between; align-items:center;
-    margin-bottom: 20px;
+    margin-bottom: 18px;
   }
   .stats-panel-header h2{
-    font-family:'Fraunces',serif; font-size:1.2rem; font-weight:600; margin:0;
+    font-family:'Fraunces',serif; font-size:1.2rem; font-weight:700; margin:0;
   }
   .stats-close{
-    background: var(--accent-soft); border:none; font-size:0.85rem; cursor:pointer;
-    color:var(--text-soft); width:28px; height:28px; border-radius:50%;
+    background: var(--accent-soft); border:none; font-size:0.8rem; cursor:pointer;
+    color:var(--text-soft); width:26px; height:26px; border-radius:50%;
     display:flex; align-items:center; justify-content:center;
+    transition: background 0.15s, transform 0.1s;
   }
   .stats-close:hover{ background: var(--border-soft); }
+  .stats-close:active{ transform: scale(0.9); }
   .stats-grid{
-    display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 18px;
+    display:grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap: 14px;
+  }
+  .stats-block{
+    background: var(--accent-soft); border-radius: var(--r-md);
+    padding: 14px 16px 16px;
   }
   .stats-block h3{
     font-family: var(--sys); font-size:0.72rem; text-transform:uppercase; font-weight:700;
-    letter-spacing:0.06em; color:var(--text-soft); margin: 0 0 10px;
+    letter-spacing:0.04em; color:var(--text-soft); margin: 0 0 12px;
   }
   .stats-bar-row{
-    display:flex; align-items:center; gap:8px; margin-bottom:5px; font-size:0.82rem;
+    display:flex; align-items:center; gap:9px; margin-bottom:8px; font-size:0.82rem;
   }
-  .stats-bar-label{ min-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex-shrink:0; }
-  .stats-bar-track{ flex:1; height:6px; background:var(--accent-soft); border-radius:3px; overflow:hidden; }
-  .stats-bar-fill{ height:100%; border-radius:3px; }
-  .stats-bar-n{ font-family:'IBM Plex Mono',monospace; font-size:0.72rem; color:var(--text-soft); min-width:26px; text-align:right; }
-  .stats-numbers{ display:flex; gap:22px; flex-wrap:wrap; }
-  .stats-num{ text-align:center; }
-  .stats-num b{ font-family:'Fraunces',serif; font-size:1.5rem; display:block; }
-  .stats-num span{ font-size:0.74rem; color:var(--text-soft); font-family:'IBM Plex Mono',monospace; text-transform:uppercase; letter-spacing:0.04em; }
+  .stats-bar-row:last-child{ margin-bottom:0; }
+  .stats-bar-label{ min-width:118px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex-shrink:0; color:var(--text); }
+  .stats-bar-track{ flex:1; height:7px; background: rgba(43,38,32,0.08); border-radius: var(--r-pill); overflow:hidden; }
+  .stats-bar-fill{ height:100%; border-radius: var(--r-pill); transition: width 0.4s ease; }
+  .stats-bar-n{ font-family: var(--sys); font-weight:600; font-size:0.76rem; color:var(--text-soft); min-width:24px; text-align:right; }
+
+  .stats-numbers{ display:grid; grid-template-columns: repeat(auto-fit, minmax(72px, 1fr)); gap:8px; }
+  .stats-num{
+    text-align:center; background: var(--bg-card); border-radius: var(--r-md);
+    padding: 12px 6px 10px;
+  }
+  .stats-num b{ font-family:'Fraunces',serif; font-size:1.5rem; display:block; font-weight:700; letter-spacing:-0.01em; }
+  .stats-num span{ font-size:0.66rem; color:var(--text-soft); font-family: var(--sys); font-weight:600; text-transform:uppercase; letter-spacing:0.03em; }
 
   .empty{
     text-align:center; padding: 60px 20px; color: var(--text-soft);
@@ -1187,15 +1198,13 @@ function renderStats(){
   }
 
   grid.innerHTML = `
-    <div class="stats-block">
+    <div class="stats-block" style="grid-column: 1 / -1;">
       <h3>Resum</h3>
       <div class="stats-numbers">
         <div class="stats-num"><b>${total}</b><span>Total</span></div>
         <div class="stats-num"><b>${llegits}</b><span>Llegits</span></div>
         <div class="stats-num"><b>${total-llegits}</b><span>Pendents</span></div>
         <div class="stats-num"><b>${Math.round(llegits/total*100)}%</b><span>% llegit</span></div>
-      </div>
-      <div style="margin-top:14px;" class="stats-numbers">
         <div class="stats-num"><b>${casa}</b><span>A casa</span></div>
         <div class="stats-num"><b>${digital}</b><span>Synology</span></div>
         <div class="stats-num"><b>${ambdos}</b><span>Tots dos</span></div>
