@@ -829,11 +829,13 @@ let viewMode = localStorage.getItem('biblioteca_view_mode') || 'grid';
 const LANG_MAP = { ca:'Català', es:'Espanyol', en:'Anglès', fr:'Francès', it:'Italià', pt:'Portuguès', de:'Alemany', ja:'Japonès' };
 
 function setViewMode(mode){
+  const changed = viewMode !== mode;
   viewMode = mode;
   localStorage.setItem('biblioteca_view_mode', mode);
   document.getElementById('grid').classList.toggle('list-view', mode === 'list');
   document.getElementById('viewGrid').classList.toggle('active', mode === 'grid');
   document.getElementById('viewList').classList.toggle('active', mode === 'list');
+  if(changed && ALL_BOOKS.length) renderGrid();
 }
 
 if(READONLY){
