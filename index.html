@@ -1297,7 +1297,7 @@ function renderStats(){
         <div class="stats-num"><b>${total}</b><span>Total</span></div>
         <div class="stats-num"><b>${llegits}</b><span>Llegits</span></div>
         <div class="stats-num"><b>${total-llegits}</b><span>Pendents</span></div>
-        <div class="stats-num"><b>${Math.round(llegits/total*100)}%</b><span>% llegit</span></div>
+        <div class="stats-num"><b>${total ? Math.round(llegits/total*100) : 0}%</b><span>% llegit</span></div>
         <div class="stats-num"><b>${casa}</b><span>A casa</span></div>
         <div class="stats-num"><b>${digital}</b><span>Synology</span></div>
         <div class="stats-num"><b>${ambdos}</b><span>Tots dos</span></div>
