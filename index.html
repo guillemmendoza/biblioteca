@@ -1504,12 +1504,30 @@ function toCognomNom(name){
   if(!n || n.includes(',')) return n;
   const parts = n.split(/\s+/);
   if(parts.length < 2) return n;
-  const particles = ['de','del','de la','van','von','der','di','da','dos','das','i'];
-  let splitAt = parts.length - 1;
-  while(splitAt > 1 && particles.includes(parts[splitAt - 1].toLowerCase())) splitAt--;
-  const cognom = parts.slice(splitAt).join(' ');
-  const nom = parts.slice(0, splitAt).join(' ');
-  return `${cognom}, ${nom}`;
+
+  const particles = ['de','del','de la','van','von','der','di','da','dos','das','i','y'];
+  // Busca la primera partícula (que no sigui la primera ni l'última paraula):
+  // tot el que hi ha des d'allà fins al final és el cognom complet.
+  let particleIdx = -1;
+  for(let idx = 1; idx < parts.length - 1; idx++){
+    if(particles.includes(parts[idx].toLowerCase())){ particleIdx = idx; break; }
+  }
+
+  if(particleIdx !== -1){
+    const cognom = parts.slice(particleIdx).join(' ');
+    const nom = parts.slice(0, particleIdx).join(' ');
+    return `${cognom}, ${nom}`;
+  }
+
+  // Nom i cognom simples (2 paraules): invertim amb confiança.
+  if(parts.length === 2){
+    return `${parts[1]}, ${parts[0]}`;
+  }
+
+  // 3+ paraules sense partícula: podria ser cognom compost (García Márquez)
+  // o nom amb segon nom (Juan Carlos Rodríguez) — massa ambigu per endevinar-ho
+  // sense encertar-la malament, així que el deixem tal qual perquè ho revisis a mà.
+  return n;
 }
 
 async function lookupIsbn(){
