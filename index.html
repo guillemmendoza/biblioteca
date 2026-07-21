@@ -663,7 +663,7 @@
         </div>
         <div>
           <label>Autor</label>
-          <input type="text" id="f_autor">
+          <input type="text" id="f_autor" placeholder="Cognom, Nom">
         </div>
         <div>
           <label>Autor secundari / Editor</label>
@@ -1483,6 +1483,19 @@ document.getElementById('btnExport').onclick = () => {
   }
 };
 
+function toCognomNom(name){
+  const n = name.trim();
+  if(!n || n.includes(',')) return n;
+  const parts = n.split(/\s+/);
+  if(parts.length < 2) return n;
+  const particles = ['de','del','de la','van','von','der','di','da','dos','das','i'];
+  let splitAt = parts.length - 1;
+  while(splitAt > 1 && particles.includes(parts[splitAt - 1].toLowerCase())) splitAt--;
+  const cognom = parts.slice(splitAt).join(' ');
+  const nom = parts.slice(0, splitAt).join(' ');
+  return `${cognom}, ${nom}`;
+}
+
 async function lookupIsbn(){
   const raw = document.getElementById('f_isbn_lookup').value.trim();
   const isbn = raw.replace(/[^0-9Xx]/g, '');
@@ -1502,7 +1515,7 @@ async function lookupIsbn(){
       const v = gJson.items[0].volumeInfo;
       if(v.title) document.getElementById('f_titol').value = v.title;
       if(v.subtitle) document.getElementById('f_subtitol').value = v.subtitle;
-      if(v.authors) document.getElementById('f_autor').value = v.authors.join('; ');
+      if(v.authors) document.getElementById('f_autor').value = v.authors.map(toCognomNom).join('; ');
       if(v.publishedDate) document.getElementById('f_any').value = v.publishedDate.slice(0,4);
       if(v.publisher) document.getElementById('f_editorial').value = v.publisher;
       if(v.language) document.getElementById('f_idioma').value = LANG_MAP[v.language] || v.language;
@@ -1520,7 +1533,7 @@ async function lookupIsbn(){
         const d = oJson[key];
         if(d.title) document.getElementById('f_titol').value = d.title;
         if(d.subtitle) document.getElementById('f_subtitol').value = d.subtitle;
-        if(d.authors) document.getElementById('f_autor').value = d.authors.map(a=>a.name).join('; ');
+        if(d.authors) document.getElementById('f_autor').value = d.authors.map(a=>toCognomNom(a.name)).join('; ');
         if(d.publish_date) document.getElementById('f_any').value = (d.publish_date.match(/\d{4}/)||[''])[0];
         if(d.publishers) document.getElementById('f_editorial').value = d.publishers.map(p=>p.name).join('; ');
         document.getElementById('f_isbn').value = raw;
