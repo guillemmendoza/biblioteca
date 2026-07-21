@@ -198,6 +198,8 @@
     border-radius: var(--r-md);
     box-shadow: 0 1px 2px rgba(43,38,32,0.05), 0 1px 8px rgba(43,38,32,0.045);
     transition: transform 0.1s, box-shadow 0.1s;
+    min-width: 0;
+    max-width: 100%;
   }
   .list-row:hover{ box-shadow: 0 4px 14px rgba(43,38,32,0.09); }
   .list-row:active{ transform: scale(0.99); }
@@ -215,7 +217,7 @@
   .lr-title .volum-badge{ font-size: 0.56rem; }
   .lr-sub{
     display:flex; align-items:center; gap:7px;
-    overflow:hidden;
+    overflow:hidden; min-width: 0;
   }
   .lr-area-pill{
     flex-shrink:0; font-family: var(--sys); font-size:0.66rem; font-weight:700;
