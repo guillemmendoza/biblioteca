@@ -215,6 +215,12 @@
     margin-bottom: 5px;
   }
   .lr-title .volum-badge{ font-size: 0.56rem; }
+  .lr-year-badge{
+    font-family: var(--sys); font-weight:700; font-size:0.7rem;
+    color: var(--accent); background: var(--accent-soft);
+    padding: 2px 8px; border-radius: var(--r-pill); white-space:nowrap;
+    vertical-align: middle;
+  }
   .lr-sub{
     display:flex; align-items:center; gap:7px;
     overflow:hidden; min-width: 0;
@@ -228,10 +234,6 @@
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   }
   .lr-trailing{ display:flex; align-items:center; gap:11px; flex-shrink:0; }
-  .lr-year{
-    font-family: var(--sys); font-size:0.72rem; font-weight:600;
-    color: var(--text-faint);
-  }
   .lr-llegit{
     width:28px; height:28px; border-radius:50%; border:none;
     background: rgba(43,38,32,0.07); color: var(--text-faint);
@@ -1098,14 +1100,13 @@ function buildListRow(b){
   row.innerHTML = `
     <span class="lr-bar" style="background:${color}"></span>
     <div class="lr-main">
-      <div class="lr-title">${escapeHtml(b.titol)}${b.volum ? ` <span class="volum-badge">${escapeHtml(b.volum)}</span>` : ''}</div>
+      <div class="lr-title">${escapeHtml(b.titol)}${b.volum ? ` <span class="volum-badge">${escapeHtml(b.volum)}</span>` : ''}${b.any_publicacio ? ` <span class="lr-year-badge">${b.any_publicacio}</span>` : ''}</div>
       <div class="lr-sub">
         ${area ? `<span class="lr-area-pill" style="background:${color}22;color:${color}">${escapeHtml(area)}</span>` : ''}
         <span class="lr-meta-text">${escapeHtml(subParts.join(' · '))}</span>
       </div>
     </div>
     <div class="lr-trailing">
-      ${b.any_publicacio ? `<span class="lr-year">${b.any_publicacio}</span>` : ''}
       ${!READONLY ? `<button type="button" class="lr-llegit ${llegit ? 'llegit' : ''}" aria-label="${llegit ? 'Marca com a no llegit' : 'Marca com a llegit'}" title="${llegit ? 'Marca com a no llegit' : 'Marca com a llegit'}">✓</button>` : (llegit ? '<span class="lr-llegit llegit" aria-hidden="true">✓</span>' : '')}
       <span class="lr-chevron">›</span>
     </div>
