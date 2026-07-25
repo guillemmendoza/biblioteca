@@ -1586,6 +1586,72 @@ document.getElementById('btnLookupAutor').onclick = async () => {
     : 'No trobat a Wikidata — s\'ha aplicat la millor suposició.';
 };
 
+function isbn10to13(isbn10){
+  const core = isbn10.slice(0, 9);
+  if(core.length !== 9 || !/^\d{9}$/.test(core)) return null;
+  const digits = ('978' + core).split('').map(Number);
+  let sum = 0;
+  for(let i = 0; i < 12; i++) sum += digits[i] * (i % 2 === 0 ? 1 : 3);
+  const check = (10 - (sum % 10)) % 10;
+  return '978' + core + check;
+}
+
+function isbn13to10(isbn13){
+  if(!isbn13.startsWith('978') || isbn13.length !== 13) return null;
+  const core = isbn13.slice(3, 12);
+  let sum = 0;
+  for(let i = 0; i < 9; i++) sum += Number(core[i]) * (10 - i);
+  let check = (11 - (sum % 11)) % 11;
+  return core + (check === 10 ? 'X' : String(check));
+}
+
+function isbnCandidates(isbn){
+  const set = new Set([isbn]);
+  if(isbn.length === 10){
+    const c13 = isbn10to13(isbn);
+    if(c13) set.add(c13);
+  } else if(isbn.length === 13){
+    const c10 = isbn13to10(isbn);
+    if(c10) set.add(c10);
+  }
+  return Array.from(set);
+}
+
+async function tryGoogleBooks(candidates){
+  for(const c of candidates){
+    try{
+      const res = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${c}`);
+      const json = await res.json();
+      if(json.totalItems > 0) return { source: 'Google Books', data: json.items[0].volumeInfo, isbn: c };
+    }catch(e){ console.error(e); }
+  }
+  return null;
+}
+
+async function tryOpenLibraryBooks(candidates){
+  for(const c of candidates){
+    try{
+      const res = await fetch(`https://openlibrary.org/api/books?bibkeys=ISBN:${c}&format=json&jscmd=data`);
+      const json = await res.json();
+      const d = json[`ISBN:${c}`];
+      if(d) return { source: 'Open Library', data: d, isbn: c };
+    }catch(e){ console.error(e); }
+  }
+  return null;
+}
+
+async function tryOpenLibrarySearch(candidates){
+  for(const c of candidates){
+    try{
+      const res = await fetch(`https://openlibrary.org/search.json?isbn=${c}&limit=1`);
+      const json = await res.json();
+      const d = json.docs && json.docs[0];
+      if(d) return { source: 'Open Library (cerca)', data: d, isbn: c };
+    }catch(e){ console.error(e); }
+  }
+  return null;
+}
+
 async function lookupIsbn(){
   const raw = document.getElementById('f_isbn_lookup').value.trim();
   const isbn = raw.replace(/[^0-9Xx]/g, '');
@@ -1594,44 +1660,55 @@ async function lookupIsbn(){
 
   const btn = document.getElementById('btnLookupIsbn');
   btn.disabled = true; btn.textContent = 'Cercant…';
-  statusEl.textContent = 'Consultant Google Books…';
+
+  const candidates = isbnCandidates(isbn);
 
   try{
-    let found = false;
+    statusEl.textContent = 'Consultant Google Books…';
+    let hit = await tryGoogleBooks(candidates);
 
-    const gRes = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`);
-    const gJson = await gRes.json();
-    if(gJson.totalItems > 0){
-      const v = gJson.items[0].volumeInfo;
-      if(v.title) document.getElementById('f_titol').value = v.title;
-      if(v.subtitle) document.getElementById('f_subtitol').value = v.subtitle;
-      if(v.authors) document.getElementById('f_autor').value = v.authors.map(toCognomNom).join('; ');
-      if(v.publishedDate) document.getElementById('f_any').value = v.publishedDate.slice(0,4);
-      if(v.publisher) document.getElementById('f_editorial').value = v.publisher;
-      if(v.language) document.getElementById('f_idioma').value = LANG_MAP[v.language] || v.language;
-      if(v.description) document.getElementById('f_resum').value = v.description;
-      document.getElementById('f_isbn').value = raw;
-      found = true;
+    if(!hit){
+      statusEl.textContent = 'Consultant Open Library…';
+      hit = await tryOpenLibraryBooks(candidates);
+    }
+    if(!hit){
+      statusEl.textContent = 'Consultant el cercador d\'Open Library…';
+      hit = await tryOpenLibrarySearch(candidates);
     }
 
-    if(!found){
-      statusEl.textContent = 'Consultant Open Library…';
-      const oRes = await fetch(`https://openlibrary.org/api/books?bibkeys=ISBN:${isbn}&format=json&jscmd=data`);
-      const oJson = await oRes.json();
-      const key = `ISBN:${isbn}`;
-      if(oJson[key]){
-        const d = oJson[key];
+    if(hit){
+      const isGoogle = hit.source === 'Google Books';
+      const isOlBooks = hit.source === 'Open Library';
+      const d = hit.data;
+
+      if(isGoogle){
+        if(d.title) document.getElementById('f_titol').value = d.title;
+        if(d.subtitle) document.getElementById('f_subtitol').value = d.subtitle;
+        if(d.authors) document.getElementById('f_autor').value = d.authors.map(toCognomNom).join('; ');
+        if(d.publishedDate) document.getElementById('f_any').value = d.publishedDate.slice(0,4);
+        if(d.publisher) document.getElementById('f_editorial').value = d.publisher;
+        if(d.language) document.getElementById('f_idioma').value = LANG_MAP[d.language] || d.language;
+        if(d.description) document.getElementById('f_resum').value = d.description;
+      } else if(isOlBooks){
         if(d.title) document.getElementById('f_titol').value = d.title;
         if(d.subtitle) document.getElementById('f_subtitol').value = d.subtitle;
         if(d.authors) document.getElementById('f_autor').value = d.authors.map(a=>toCognomNom(a.name)).join('; ');
         if(d.publish_date) document.getElementById('f_any').value = (d.publish_date.match(/\d{4}/)||[''])[0];
         if(d.publishers) document.getElementById('f_editorial').value = d.publishers.map(p=>p.name).join('; ');
-        document.getElementById('f_isbn').value = raw;
-        found = true;
+      } else {
+        // Open Library search.json: camps una mica diferents
+        if(d.title) document.getElementById('f_titol').value = d.title;
+        if(d.author_name) document.getElementById('f_autor').value = d.author_name.map(toCognomNom).join('; ');
+        if(d.first_publish_year) document.getElementById('f_any').value = d.first_publish_year;
+        if(d.publisher) document.getElementById('f_editorial').value = d.publisher[0];
+        if(d.language) document.getElementById('f_idioma').value = LANG_MAP[d.language[0]] || d.language[0];
       }
-    }
 
-    statusEl.textContent = found ? 'Dades trobades i omplertes ✓' : 'No s\'ha trobat cap llibre amb aquest ISBN.';
+      document.getElementById('f_isbn').value = raw;
+      statusEl.textContent = `Dades trobades a ${hit.source} ✓`;
+    } else {
+      statusEl.textContent = 'No s\'ha trobat cap llibre amb aquest ISBN a cap de les 3 fonts consultades.';
+    }
   }catch(err){
     console.error(err);
     statusEl.textContent = 'Error consultant les dades. Prova-ho de nou.';
