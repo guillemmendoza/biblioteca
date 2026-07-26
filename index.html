@@ -1666,6 +1666,26 @@ function wikiLangPriority(){
   return [...new Set(langs)]; // sense duplicats, mantenint l'ordre
 }
 
+const WIKI_STOPWORDS = new Set([
+  'de','la','el','els','les','un','una','uns','unes','i','a','en','del','dels','al','als','per','amb',
+  'the','of','and','to','le','du','des','das','der','die','y','en','en',
+]);
+
+function significantWords(s){
+  return normalizeHeader(s)
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .split(/\s+/)
+    .filter(w => w.length > 2 && !WIKI_STOPWORDS.has(w));
+}
+
+function titleMatchScore(bookTitle, articleTitle){
+  const bookWords = significantWords(bookTitle);
+  if(!bookWords.length) return 0;
+  const artWords = new Set(significantWords(articleTitle));
+  const overlap = bookWords.filter(w => artWords.has(w)).length;
+  return overlap / bookWords.length;
+}
+
 async function tryWikipediaSummary(){
   const titol = document.getElementById('f_titol').value.trim();
   const autor = document.getElementById('f_autor').value.trim().split(';')[0].split(',').reverse().join(' ').trim();
@@ -1673,20 +1693,30 @@ async function tryWikipediaSummary(){
 
   for(const lang of wikiLangPriority()){
     try{
-      // 1. Cerca l'article que millor encaixi (el títol fitxat pot no coincidir
-      // literalment amb el nom de l'article, sobretot si el títol és en un altre idioma)
+      // 1. Cerca diversos candidats (el títol fitxat pot no coincidir literalment
+      // amb el nom de l'article, sobretot si el títol és en un altre idioma)
       const searchQuery = autor ? `${titol} ${autor}` : titol;
       const searchRes = await fetch(
-        `https://${lang}.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(searchQuery)}&srlimit=1&format=json&origin=*`
+        `https://${lang}.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(searchQuery)}&srlimit=5&format=json&origin=*`
       );
       const searchJson = await searchRes.json();
-      const bestMatch = searchJson.query && searchJson.query.search && searchJson.query.search[0];
-      if(!bestMatch) continue;
+      const candidats = (searchJson.query && searchJson.query.search) || [];
 
-      // 2. Demana el primer paràgraf/secció introductòria sencera d'aquell article
+      // 2. Descarta candidats que no tinguin relació real amb el títol del llibre
+      // (evita falsos positius com trobar un article totalment aliè per una
+      // coincidència parcial de paraules poc rellevants)
+      const bo = candidats
+        .filter(c => !/^(llista|list|categoria|category|annex)\s*(de|of)?\s*:?/i.test(c.title))
+        .map(c => ({ ...c, score: titleMatchScore(titol, c.title) }))
+        .filter(c => c.score >= 0.5)
+        .sort((a, b) => b.score - a.score)[0];
+
+      if(!bo) continue;
+
+      // 3. Demana el primer paràgraf/secció introductòria sencera d'aquell article
       // (molt més complet que l'extracte curt del format "targeta")
       const extractRes = await fetch(
-        `https://${lang}.wikipedia.org/w/api.php?action=query&prop=extracts&exintro=1&explaintext=1&redirects=1&titles=${encodeURIComponent(bestMatch.title)}&format=json&origin=*`
+        `https://${lang}.wikipedia.org/w/api.php?action=query&prop=extracts&exintro=1&explaintext=1&redirects=1&titles=${encodeURIComponent(bo.title)}&format=json&origin=*`
       );
       const extractJson = await extractRes.json();
       const pages = extractJson.query && extractJson.query.pages;
@@ -1694,7 +1724,7 @@ async function tryWikipediaSummary(){
       const text = page && page.extract && page.extract.trim();
 
       if(text && text.length > 40 && !/^.{0,30}pot referir-se a|^.{0,30}puede referirse a|^.{0,30}may (also )?refer to/i.test(text)){
-        return { text, source: `Viquipèdia (${WIKI_LANG_NAMES[lang] || lang}) — "${bestMatch.title}"` };
+        return { text, source: `Viquipèdia (${WIKI_LANG_NAMES[lang] || lang}) — "${bo.title}"` };
       }
     }catch(e){ console.error(e); }
   }
