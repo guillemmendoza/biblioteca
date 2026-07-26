@@ -737,7 +737,11 @@
         </div>
         <div>
           <label>Preu</label>
-          <input type="number" step="0.01" id="f_preu">
+          <div style="display:flex; gap:6px;">
+            <input type="number" step="0.01" id="f_preu" style="flex:1;">
+            <button type="button" class="btn btn-secondary" id="btnPreuIberlibro" title="Cerca preu a Iberlibro" style="padding:0 9px; font-size:0.72rem;">Iberlibro</button>
+            <button type="button" class="btn btn-secondary" id="btnPreuTodocol" title="Cerca preu a Todocolección" style="padding:0 9px; font-size:0.72rem;">Todocol.</button>
+          </div>
         </div>
         <div>
           <label>Data d'adquisició</label>
@@ -758,6 +762,10 @@
         <div class="full">
           <label>Resum</label>
           <textarea id="f_resum"></textarea>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px;">
+            <span id="resumLookupStatus" style="font-size:0.72rem; color:var(--text-soft);"></span>
+            <button type="button" class="btn btn-secondary" id="btnLookupResum" style="font-size:0.76rem; padding:5px 10px;">🔍 Cerca resum</button>
+          </div>
         </div>
         <div class="full">
           <label>Comentaris personals</label>
@@ -1587,6 +1595,102 @@ document.getElementById('btnLookupAutor').onclick = async () => {
     : 'No trobat a Wikidata — s\'ha aplicat la millor suposició.';
 };
 
+function buildPriceSearchQuery(){
+  const titol = document.getElementById('f_titol').value.trim();
+  const autor = document.getElementById('f_autor').value.trim().split(';')[0].split(',').reverse().join(' ').trim();
+  return [titol, autor].filter(Boolean).join(' ');
+}
+
+document.getElementById('btnPreuIberlibro').onclick = () => {
+  const q = buildPriceSearchQuery();
+  if(!q){ toast('Omple almenys el títol primer', 'error'); return; }
+  window.open(`https://www.iberlibro.com/servlet/SearchResults?kn=${encodeURIComponent(q)}&sts=t`, '_blank');
+};
+
+document.getElementById('btnPreuTodocol').onclick = () => {
+  const q = buildPriceSearchQuery();
+  if(!q){ toast('Omple almenys el títol primer', 'error'); return; }
+  window.open(`https://www.todocoleccion.net/s/${encodeURIComponent(q)}`, '_blank');
+};
+
+async function tryGoogleBooksDescription(){
+  const isbn = document.getElementById('f_isbn').value.trim().replace(/[^0-9Xx]/g, '');
+  const titol = document.getElementById('f_titol').value.trim();
+  const autor = document.getElementById('f_autor').value.trim().split(';')[0];
+  const q = isbn ? `isbn:${isbn}` : [titol, autor].filter(Boolean).join(' ');
+  if(!q) return null;
+  try{
+    const res = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(q)}`);
+    const json = await res.json();
+    const v = json.items && json.items[0] && json.items[0].volumeInfo;
+    if(v && v.description) return { text: v.description, source: 'Google Books' };
+  }catch(e){ console.error(e); }
+  return null;
+}
+
+async function tryOpenLibraryDescription(){
+  const isbn = document.getElementById('f_isbn').value.trim().replace(/[^0-9Xx]/g, '');
+  if(!isbn) return null;
+  try{
+    const editionRes = await fetch(`https://openlibrary.org/isbn/${isbn}.json`);
+    if(!editionRes.ok) return null;
+    const edition = await editionRes.json();
+    const workKey = edition.works && edition.works[0] && edition.works[0].key;
+    if(!workKey) return null;
+    const workRes = await fetch(`https://openlibrary.org${workKey}.json`);
+    const work = await workRes.json();
+    const desc = work.description;
+    const text = typeof desc === 'string' ? desc : (desc && desc.value);
+    if(text) return { text, source: 'Open Library' };
+  }catch(e){ console.error(e); }
+  return null;
+}
+
+async function tryWikipediaSummary(){
+  const titol = document.getElementById('f_titol').value.trim();
+  if(!titol) return null;
+  for(const lang of ['ca', 'es']){
+    try{
+      const res = await fetch(`https://${lang}.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(titol)}`);
+      if(!res.ok) continue;
+      const json = await res.json();
+      if(json.extract && json.type !== 'disambiguation'){
+        return { text: json.extract, source: `Viquipèdia (${lang === 'ca' ? 'català' : 'castellà'})` };
+      }
+    }catch(e){ console.error(e); }
+  }
+  return null;
+}
+
+document.getElementById('btnLookupResum').onclick = async () => {
+  const statusEl = document.getElementById('resumLookupStatus');
+  const titol = document.getElementById('f_titol').value.trim();
+  if(!titol){ statusEl.textContent = 'Omple el títol primer.'; return; }
+
+  const btn = document.getElementById('btnLookupResum');
+  btn.disabled = true;
+
+  statusEl.textContent = 'Consultant Google Books…';
+  let hit = await tryGoogleBooksDescription();
+
+  if(!hit){
+    statusEl.textContent = 'Consultant Open Library…';
+    hit = await tryOpenLibraryDescription();
+  }
+  if(!hit){
+    statusEl.textContent = 'Consultant Viquipèdia…';
+    hit = await tryWikipediaSummary();
+  }
+
+  if(hit){
+    document.getElementById('f_resum').value = hit.text;
+    statusEl.textContent = `Trobat a ${hit.source} ✓`;
+  }else{
+    statusEl.textContent = 'No s\'ha trobat cap resum a cap de les 3 fonts.';
+  }
+  btn.disabled = false;
+};
+
 function isbn10to13(isbn10){
   const core = isbn10.slice(0, 9);
   if(core.length !== 9 || !/^\d{9}$/.test(core)) return null;
@@ -1623,7 +1727,7 @@ async function tryGoogleBooks(candidates){
     try{
       const res = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${c}`);
       const json = await res.json();
-      if(json.totalItems > 0) return { source: 'Google Books', data: json.items[0].volumeInfo, isbn: c };
+      if(json.totalItems > 0) return { source: 'Google Books', data: json.items[0].volumeInfo, saleInfo: json.items[0].saleInfo, isbn: c };
     }catch(e){ console.error(e); }
   }
   return null;
@@ -1690,6 +1794,8 @@ async function lookupIsbn(){
         if(d.publisher) document.getElementById('f_editorial').value = d.publisher;
         if(d.language) document.getElementById('f_idioma').value = LANG_MAP[d.language] || d.language;
         if(d.description) document.getElementById('f_resum').value = d.description;
+        const preu = hit.saleInfo && hit.saleInfo.listPrice && hit.saleInfo.listPrice.amount;
+        if(preu) document.getElementById('f_preu').value = preu;
       } else if(isOlBooks){
         if(d.title) document.getElementById('f_titol').value = d.title;
         if(d.subtitle) document.getElementById('f_subtitol').value = d.subtitle;
