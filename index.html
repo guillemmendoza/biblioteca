@@ -38,7 +38,7 @@
     --c-cultura: #A8823C;
     --c-default: #8B5E3C;
 
-    --r-sm: 10px;
+    --r-sm: 12px;
     --r-md: 14px;
     --r-lg: 18px;
     --r-pill: 999px;
@@ -76,10 +76,10 @@
   }
   .brand h1{
     font-family: 'Fraunces', serif;
-    font-weight: 700;
-    font-size: 2rem;
+    font-weight: 800;
+    font-size: 2.1rem;
     margin: 0 0 2px;
-    letter-spacing: -0.02em;
+    letter-spacing: -0.025em;
   }
   .brand .sub{
     font-family: 'IBM Plex Mono', monospace;
@@ -144,7 +144,7 @@
     transition: transform 0.1s, opacity 0.15s;
   }
   .btn-add:hover{ opacity:0.88; }
-  .btn-add:active{ transform: scale(0.96); }
+  .btn-add:active{ transform: scale(0.975); }
 
   /* Filters */
   .filters{
@@ -156,15 +156,16 @@
     height: 32px; padding: 0 13px;
     border-radius: var(--r-pill);
     font-size: 0.8rem;
+    font-weight: 500;
     font-family: var(--sys);
     cursor: pointer;
     color: var(--text-soft);
     display:flex; align-items:center; gap:6px;
     transition: transform 0.08s, background 0.15s, color 0.15s;
   }
-  .chip:active{ transform: scale(0.95); }
+  .chip:active{ transform: scale(0.97); }
   .chip .dot{ width:8px; height:8px; border-radius:50%; }
-  .chip.active{ color: #fff; font-weight:600; background: var(--text); }
+  .chip.active{ color: #fff; font-weight:700; background: var(--text); }
   select.chip{ appearance:none; -webkit-appearance:none; padding-right:28px;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%236b6153'/%3E%3C/svg%3E");
     background-repeat:no-repeat; background-position: right 12px center;
@@ -230,7 +231,7 @@
     padding: 3px 9px; border-radius: var(--r-pill); white-space:nowrap;
   }
   .lr-meta-text{
-    font-size:0.78rem; color: var(--text-soft);
+    font-size:0.78rem; color: var(--text-soft); font-weight:500;
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   }
   .lr-trailing{ display:flex; align-items:center; gap:11px; flex-shrink:0; }
@@ -266,7 +267,7 @@
     white-space:nowrap; transition: transform 0.1s, background 0.15s;
   }
   .btn-outline:hover{ background: var(--border-soft); }
-  .btn-outline:active{ transform: scale(0.96); }
+  .btn-outline:active{ transform: scale(0.975); }
   .btn-outline.active-outline{ background: var(--text); color: var(--bg); }
 
   .readonly-banner{
@@ -376,7 +377,7 @@
     margin-bottom: 18px;
   }
   .stats-panel-header h2{
-    font-family:'Fraunces',serif; font-size:1.2rem; font-weight:700; margin:0;
+    font-family:'Fraunces',serif; font-size:1.2rem; font-weight:800; margin:0;
   }
   .stats-close{
     background: var(--accent-soft); border:none; font-size:0.8rem; cursor:pointer;
@@ -402,7 +403,7 @@
     display:flex; align-items:center; gap:9px; margin-bottom:8px; font-size:0.82rem;
   }
   .stats-bar-row:last-child{ margin-bottom:0; }
-  .stats-bar-label{ min-width:118px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex-shrink:0; color:var(--text); }
+  .stats-bar-label{ min-width:118px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex-shrink:0; color:var(--text); font-weight:500; }
   .stats-bar-track{ flex:1; height:7px; background: rgba(43,38,32,0.08); border-radius: var(--r-pill); overflow:hidden; }
   .stats-bar-fill{ height:100%; border-radius: var(--r-pill); transition: width 0.4s ease; }
   .stats-bar-n{ font-family: var(--sys); font-weight:600; font-size:0.76rem; color:var(--text-soft); min-width:24px; text-align:right; }
@@ -465,7 +466,7 @@
     box-shadow: 0 20px 60px rgba(0,0,0,0.28);
   }
   .modal h2{
-    font-family:'Fraunces',serif; font-weight:700; margin: 0 0 18px; font-size:1.35rem;
+    font-family:'Fraunces',serif; font-weight:800; margin: 0 0 18px; font-size:1.35rem;
   }
   @media (max-width: 640px){
     .overlay{ align-items:flex-end; padding:0; }
@@ -532,7 +533,7 @@
     font-weight:600; font-size:0.88rem; cursor:pointer; border:none;
     transition: transform 0.1s, opacity 0.15s;
   }
-  .btn:active{ transform: scale(0.96); }
+  .btn:active{ transform: scale(0.975); }
   .btn:disabled{ opacity:0.5; cursor:default; transform:none; }
   .btn-primary{ background: var(--text); color: var(--bg); }
   .btn-primary:hover{ opacity:0.88; }
