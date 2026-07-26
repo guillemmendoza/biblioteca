@@ -913,7 +913,7 @@ async function loadBooks(){
     ALL_BOOKS = all;
     document.getElementById('loadingState').style.display = 'none';
     document.getElementById('grid').style.display = '';
-    renderStats();
+    renderHeaderStats();
     renderFilters();
     renderGrid();
   }catch(err){
@@ -922,7 +922,7 @@ async function loadBooks(){
   }
 }
 
-function renderStats(){
+function renderHeaderStats(){
   const total = ALL_BOOKS.length;
   const casa = ALL_BOOKS.filter(b => (b.ubicacio||'').includes('Guillem')).length;
   const synology = ALL_BOOKS.filter(b => (b.ubicacio||'').includes('Synology')).length;
@@ -1278,6 +1278,10 @@ function renderStats(){
   const digital = ALL_BOOKS.filter(b => (b.ubicacio||'').includes('Synology')).length;
   const ambdos = ALL_BOOKS.filter(b => (b.ubicacio||'').includes('Guillem') && (b.ubicacio||'').includes('Synology')).length;
 
+  const ambPreu = ALL_BOOKS.filter(b => typeof b.preu === 'number' && !isNaN(b.preu));
+  const valorTotal = ambPreu.reduce((sum, b) => sum + b.preu, 0);
+  const valorFmt = valorTotal.toLocaleString('ca-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
+
   const byArea = countBy('area_principal', ',');
   const byIdioma = countBy('idioma', ',');
   const byFormat = countBy('format', ',');
@@ -1315,7 +1319,9 @@ function renderStats(){
         <div class="stats-num"><b>${casa}</b><span>A casa</span></div>
         <div class="stats-num"><b>${digital}</b><span>Synology</span></div>
         <div class="stats-num"><b>${ambdos}</b><span>Tots dos</span></div>
+        <div class="stats-num"><b>${valorFmt}</b><span>Valor col·lecció</span></div>
       </div>
+      ${ambPreu.length ? `<div style="font-size:0.72rem; color:var(--text-faint); margin-top:8px; font-family:var(--sys);">Calculat a partir de ${ambPreu.length} de ${total} llibres amb preu registrat.</div>` : ''}
     </div>
     ${barBlock('Per àrea', byArea, label => areaColor(label))}
     ${barBlock('Per idioma', byIdioma, () => 'var(--c-periodisme)', 8)}
