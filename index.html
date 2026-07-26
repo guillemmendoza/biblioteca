@@ -1646,12 +1646,26 @@ async function tryOpenLibraryDescription(){
   return null;
 }
 
+const WIKI_LANG_NAMES = { ca: 'català', es: 'castellà', en: 'anglès', fr: 'francès', it: 'italià', pt: 'portuguès', de: 'alemany' };
+const IDIOMA_TO_WIKI_LANG = {
+  'Català': 'ca', 'Espanyol': 'es', 'Anglès': 'en', 'Francès': 'fr',
+  'Italià': 'it', 'Portuguès': 'pt', 'Alemany': 'de',
+};
+
+function wikiLangPriority(){
+  const idiomaLlibre = document.getElementById('f_idioma').value.trim();
+  const preferit = IDIOMA_TO_WIKI_LANG[idiomaLlibre];
+  const base = ['ca', 'es', 'en'];
+  const langs = preferit ? [preferit, ...base] : base;
+  return [...new Set(langs)]; // sense duplicats, mantenint l'ordre
+}
+
 async function tryWikipediaSummary(){
   const titol = document.getElementById('f_titol').value.trim();
   const autor = document.getElementById('f_autor').value.trim().split(';')[0].split(',').reverse().join(' ').trim();
   if(!titol) return null;
 
-  for(const lang of ['ca', 'es']){
+  for(const lang of wikiLangPriority()){
     try{
       // 1. Cerca l'article que millor encaixi (el títol fitxat pot no coincidir
       // literalment amb el nom de l'article, sobretot si el títol és en un altre idioma)
@@ -1673,8 +1687,8 @@ async function tryWikipediaSummary(){
       const page = pages && Object.values(pages)[0];
       const text = page && page.extract && page.extract.trim();
 
-      if(text && text.length > 40 && !/^.{0,30}pot referir-se a|^.{0,30}puede referirse a/i.test(text)){
-        return { text, source: `Viquipèdia (${lang === 'ca' ? 'català' : 'castellà'}) — "${bestMatch.title}"` };
+      if(text && text.length > 40 && !/^.{0,30}pot referir-se a|^.{0,30}puede referirse a|^.{0,30}may (also )?refer to/i.test(text)){
+        return { text, source: `Viquipèdia (${WIKI_LANG_NAMES[lang] || lang}) — "${bestMatch.title}"` };
       }
     }catch(e){ console.error(e); }
   }
