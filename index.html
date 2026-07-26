@@ -1648,14 +1648,33 @@ async function tryOpenLibraryDescription(){
 
 async function tryWikipediaSummary(){
   const titol = document.getElementById('f_titol').value.trim();
+  const autor = document.getElementById('f_autor').value.trim().split(';')[0].split(',').reverse().join(' ').trim();
   if(!titol) return null;
+
   for(const lang of ['ca', 'es']){
     try{
-      const res = await fetch(`https://${lang}.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(titol)}`);
-      if(!res.ok) continue;
-      const json = await res.json();
-      if(json.extract && json.type !== 'disambiguation'){
-        return { text: json.extract, source: `Viquipèdia (${lang === 'ca' ? 'català' : 'castellà'})` };
+      // 1. Cerca l'article que millor encaixi (el títol fitxat pot no coincidir
+      // literalment amb el nom de l'article, sobretot si el títol és en un altre idioma)
+      const searchQuery = autor ? `${titol} ${autor}` : titol;
+      const searchRes = await fetch(
+        `https://${lang}.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(searchQuery)}&srlimit=1&format=json&origin=*`
+      );
+      const searchJson = await searchRes.json();
+      const bestMatch = searchJson.query && searchJson.query.search && searchJson.query.search[0];
+      if(!bestMatch) continue;
+
+      // 2. Demana el primer paràgraf/secció introductòria sencera d'aquell article
+      // (molt més complet que l'extracte curt del format "targeta")
+      const extractRes = await fetch(
+        `https://${lang}.wikipedia.org/w/api.php?action=query&prop=extracts&exintro=1&explaintext=1&redirects=1&titles=${encodeURIComponent(bestMatch.title)}&format=json&origin=*`
+      );
+      const extractJson = await extractRes.json();
+      const pages = extractJson.query && extractJson.query.pages;
+      const page = pages && Object.values(pages)[0];
+      const text = page && page.extract && page.extract.trim();
+
+      if(text && text.length > 40 && !/^.{0,30}pot referir-se a|^.{0,30}puede referirse a/i.test(text)){
+        return { text, source: `Viquipèdia (${lang === 'ca' ? 'català' : 'castellà'}) — "${bestMatch.title}"` };
       }
     }catch(e){ console.error(e); }
   }
@@ -1669,6 +1688,7 @@ document.getElementById('btnLookupResum').onclick = async () => {
 
   const btn = document.getElementById('btnLookupResum');
   btn.disabled = true;
+  statusEl.style.color = 'var(--text-soft)';
 
   statusEl.textContent = 'Consultant Google Books…';
   let hit = await tryGoogleBooksDescription();
@@ -1684,9 +1704,11 @@ document.getElementById('btnLookupResum').onclick = async () => {
 
   if(hit){
     document.getElementById('f_resum').value = hit.text;
+    statusEl.style.color = 'var(--c-historia)';
     statusEl.textContent = `Trobat a ${hit.source} ✓`;
   }else{
-    statusEl.textContent = 'No s\'ha trobat cap resum a cap de les 3 fonts.';
+    statusEl.style.color = '#C0435A';
+    statusEl.textContent = 'No s\'ha trobat cap resum nou a cap font — el text del quadre és el que ja hi havia abans.';
   }
   btn.disabled = false;
 };
