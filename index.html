@@ -1609,7 +1609,11 @@ function duplicateKey(b){
   const primerAutor = (b.autor || '').split(';')[0];
   const cognomNorm = normalizeHeader(primerAutor.split(',')[0] || primerAutor).replace(/[^a-z0-9 ]/g, '').trim();
   if(!titolNorm) return null;
-  return `${titolNorm}|||${cognomNorm}`;
+  // El volum pot venir tant del camp Volum com del Subtítol (ex. "Volume 9. Brasil...").
+  // Si qualsevol dels dos difereix entre dues fitxes, no són el mateix exemplar.
+  const volumNorm = normalizeHeader(b.volum || '').replace(/[^a-z0-9 ]/g, '').trim();
+  const subtitolNorm = normalizeHeader(b.subtitol || '').replace(/[^a-z0-9 ]/g, '').trim();
+  return `${titolNorm}|||${cognomNorm}|||${volumNorm}|||${subtitolNorm}`;
 }
 
 function renderDuplicates(){
@@ -1630,7 +1634,7 @@ function renderDuplicates(){
 
   const html = grupsAmbDuplicats.map(grup => {
     const items = grup.map(b => {
-      const detalls = [b.format, b.ubicacio, b.any_publicacio, b.editorial].filter(Boolean).join(' · ');
+      const detalls = [b.volum, b.subtitol, b.format, b.ubicacio, b.any_publicacio, b.editorial].filter(Boolean).join(' · ');
       return `<div class="dup-item" data-id="${b.id}">
         <span>${escapeHtml(detalls || 'Sense més detalls')}</span>
         <span class="dup-open">Obre ›</span>
