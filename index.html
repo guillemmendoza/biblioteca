@@ -972,6 +972,7 @@
         <button type="button" class="btn btn-primary" id="btnDiscogsSaveToken">Desa</button>
       </div>
       <button class="btn btn-primary" id="btnDiscogsImport" style="margin-top:6px;">💿 Importa la meva col·lecció de Discogs</button>
+      <button class="btn-outline" id="btnDiscogsPrices" style="margin-top:6px; margin-left:8px;">💶 Actualitza preus des de Discogs</button>
       <div id="discogsImportStatus" style="font-size:0.82rem; color:var(--text-soft); margin-top:10px;"></div>
     </div>
   </div>
@@ -2327,6 +2328,7 @@ document.getElementById('btnDiscogsImport').onclick = async () => {
         volum: [...new Set((info.labels||[]).map(l => l.catno).filter(Boolean))].join('; ') || null,
         tipologia: [...new Set([...(info.genres||[]), ...(info.styles||[])])].join(', ') || null,
         tipus_document: esCD && !esVinil ? 'CD' : 'Vinil',
+        discogs_release_id: String(item.id),
         afegit_per: CURRENT_USER || null,
       });
     }
@@ -2349,6 +2351,96 @@ document.getElementById('btnDiscogsImport').onclick = async () => {
   }catch(err){
     console.error(err);
     statusEl.textContent = 'Error important: ' + err.message;
+  }finally{
+    btn.disabled = false;
+  }
+};
+
+function condicioDiscogs(estat){
+  const mapa = {
+    'Nou / Precintat': 'Mint (M)',
+    'Mint (M)': 'Mint (M)',
+    'Near Mint (NM)': 'Near Mint (NM or M-)',
+    'Very Good Plus (VG+)': 'Very Good Plus (VG+)',
+    'Very Good (VG)': 'Very Good (VG)',
+    'Good (G)': 'Good Plus (G+)',
+    'Poor (P)': 'Poor (P)',
+  };
+  return mapa[estat] || 'Very Good Plus (VG+)'; // assumpcio prudent si no hi ha estat marcat
+}
+
+document.getElementById('btnDiscogsPrices').onclick = async () => {
+  if(READONLY) return;
+  const token = getDiscogsToken() || document.getElementById('discogs_token').value.trim();
+  const username = getDiscogsUsername() || document.getElementById('discogs_username').value.trim();
+  if(!token || !username){ toast('Cal el token i el nom d\'usuari primer', 'error'); return; }
+  localStorage.setItem('biblioteca_discogs_token', token);
+  localStorage.setItem('biblioteca_discogs_username', username);
+
+  const btn = document.getElementById('btnDiscogsPrices');
+  const statusEl = document.getElementById('discogsImportStatus');
+  btn.disabled = true;
+
+  try{
+    // Pas 1: si un disc ja te discogs_release_id desat, ens l'estalviem. La resta,
+    // el fem coincidir amb la coleccio de Discogs per titol+artista per trobar el seu id.
+    const musica = ALL_BOOKS.filter(b => !b.es_desig && (b.tipus_document === 'Vinil' || b.tipus_document === 'CD'));
+    const senseId = musica.filter(b => !b.discogs_release_id);
+
+    if(senseId.length){
+      statusEl.textContent = `Buscant coincidencies a la teva col·lecció de Discogs per ${senseId.length} discos…`;
+      const clauMap = new Map();
+      senseId.forEach(b => clauMap.set((b.titol||'').toLowerCase().trim() + '|' + (b.autor||'').toLowerCase().trim(), b));
+
+      let page = 1, totalPages = 1;
+      do{
+        const res = await fetch(`https://api.discogs.com/users/${encodeURIComponent(username)}/collection/folders/0/releases?token=${token}&per_page=100&page=${page}`);
+        if(!res.ok) throw new Error('Discogs ha retornat un error. Revisa el token i el nom d\'usuari.');
+        const json = await res.json();
+        for(const item of (json.releases || [])){
+          const info = item.basic_information || {};
+          const artistes = (info.artists || []).map(a => toCognomNom((a.name||'').replace(/\s*\(\d+\)$/, ''))).filter(Boolean).join('; ');
+          const clau = (info.title||'').toLowerCase().trim() + '|' + artistes.toLowerCase().trim();
+          const match = clauMap.get(clau);
+          if(match) match.discogs_release_id = String(item.id);
+        }
+        totalPages = json.pagination ? json.pagination.pages : 1;
+        page++;
+      } while(page <= totalPages);
+    }
+
+    const ambId = musica.filter(b => b.discogs_release_id && (b.preu === null || b.preu === undefined));
+    if(!ambId.length){
+      statusEl.textContent = 'Cap disc pendent de preu que estigui identificat a Discogs. Si en falten, prova primer "Importa la meva col·lecció" per enllaçar-los.';
+      return;
+    }
+
+    let actualitzats = 0;
+    for(let i = 0; i < ambId.length; i++){
+      const b = ambId[i];
+      statusEl.textContent = `Consultant preus… ${i + 1} de ${ambId.length} (${b.titol})`;
+      try{
+        const res = await fetch(`https://api.discogs.com/marketplace/price_suggestions/${b.discogs_release_id}?token=${token}`);
+        if(!res.ok) continue;
+        const preus = await res.json();
+        const condicio = condicioDiscogs(b.estat_conservacio);
+        const suggerit = preus[condicio] || Object.values(preus)[0];
+        if(suggerit && typeof suggerit.value === 'number'){
+          // Discogs dona el preu en la divisa del compte; ho desem tal qual (normalment EUR si el compte es d'Espanya)
+          await sb.from('llibres').update({ preu: suggerit.value, discogs_release_id: b.discogs_release_id }).eq('id', b.id);
+          b.preu = suggerit.value;
+          actualitzats++;
+        }
+      }catch(e){ console.error(e); }
+    }
+
+    statusEl.textContent = `Fet! Preu actualitzat a ${actualitzats} de ${ambId.length} discos.`;
+    toast(`${actualitzats} preus actualitzats`);
+    renderStats();
+    renderGrid();
+  }catch(err){
+    console.error(err);
+    statusEl.textContent = 'Error actualitzant preus: ' + err.message;
   }finally{
     btn.disabled = false;
   }
