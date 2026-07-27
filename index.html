@@ -3143,7 +3143,9 @@ async function lookupCodiMusica(codi){
       document.getElementById('f_isbn').value = raw;
       statusEl.textContent = 'Dades trobades a MusicBrainz ✓';
     } else {
-      statusEl.textContent = 'No s\'ha trobat cap disc amb aquest codi de barres a MusicBrainz.';
+      document.getElementById('f_isbn').value = raw;
+      const urlDiscogs = `https://www.discogs.com/search/?q=${encodeURIComponent(raw)}&type=release`;
+      statusEl.innerHTML = `MusicBrainz no té aquest codi fitxat (passa sovint, les dades de codi de barres hi són opcionals). <a href="${urlDiscogs}" target="_blank" style="color:var(--accent); font-weight:600;">Cerca'l a Discogs ›</a>`;
     }
   }catch(err){
     console.error(err);
