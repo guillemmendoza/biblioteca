@@ -415,10 +415,14 @@
   .user-switch{
     border:none; background:var(--accent-soft); color:var(--text-soft);
     font-family:var(--sys); font-weight:600; font-size:0.76rem;
-    padding:6px 12px; border-radius:var(--r-pill); cursor:pointer;
+    padding:6px 26px 6px 12px; border-radius:var(--r-pill); cursor:pointer;
     transition: background 0.15s;
+    appearance:none; -webkit-appearance:none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%236b6153'/%3E%3C/svg%3E");
+    background-repeat:no-repeat; background-position: right 10px center;
   }
-  .user-switch:hover{ background:var(--border-soft); }
+  .user-switch:hover{ background-color:var(--border-soft); }
+  #btnThemeToggle.user-switch{ padding:6px 12px; background-image:none; }
 
   .readonly-banner{
     background: var(--accent-soft);
@@ -849,7 +853,11 @@
     </div>
     <div class="stats" id="stats"></div>
     <button type="button" class="user-switch" id="btnThemeToggle" title="Canvia de tema" aria-label="Canvia de tema">🌙</button>
-    <button type="button" class="user-switch" id="btnUserSwitch"></button>
+    <select class="user-switch" id="userSwitch">
+      <option value="">👤 Qui ets?</option>
+      <option value="Guillem">👤 Guillem</option>
+      <option value="Nàstia">👤 Nàstia</option>
+    </select>
   </header>
 
   <div class="readonly-banner" id="readonlyBanner" style="display:none;">📖 Mode lectura — pots consultar el catàleg, no editar-lo.</div>
@@ -1373,29 +1381,20 @@ document.getElementById('btnThemeToggle').onclick = () => {
 applyTheme(localStorage.getItem('biblioteca_theme') || 'light');
 
 function ensureCurrentUser(){
-  if(CURRENT_USER || READONLY) return;
-  const triat = prompt('Qui ets? Escriu "Guillem" o "Nàstia" (només es pregunta un cop en aquest dispositiu)');
-  if(triat && triat.trim()){
-    CURRENT_USER = triat.trim();
-    localStorage.setItem('biblioteca_usuari', CURRENT_USER);
-  }
   renderUserSwitch();
 }
 
 function renderUserSwitch(){
-  const btn = document.getElementById('btnUserSwitch');
-  if(!btn) return;
-  if(READONLY){ btn.style.display = 'none'; return; }
-  btn.textContent = CURRENT_USER ? `👤 ${CURRENT_USER}` : '👤 Qui ets?';
+  const sel = document.getElementById('userSwitch');
+  if(!sel) return;
+  if(READONLY){ sel.style.display = 'none'; return; }
+  sel.value = CURRENT_USER || '';
 }
-document.getElementById('btnUserSwitch').onclick = () => {
-  const triat = prompt('Qui ets? Escriu "Guillem" o "Nàstia"', CURRENT_USER || '');
-  if(triat === null) return;
-  if(triat.trim()){
-    CURRENT_USER = triat.trim();
-    localStorage.setItem('biblioteca_usuari', CURRENT_USER);
-    renderUserSwitch();
-  }
+document.getElementById('userSwitch').onchange = (e) => {
+  const triat = e.target.value;
+  if(!triat) return;
+  CURRENT_USER = triat;
+  localStorage.setItem('biblioteca_usuari', CURRENT_USER);
 };
 renderUserSwitch();
 
