@@ -163,10 +163,10 @@
   .chip:active{ transform: scale(0.97); }
   .chip .dot{ width:8px; height:8px; border-radius:50%; }
   .chip.active{ color: #fff; font-weight:700; background: var(--text); }
-  select.chip{ appearance:none; -webkit-appearance:none; padding-right:28px;
+  select.chip{ appearance:none; -webkit-appearance:none; padding-right:28px; width:auto; max-width:180px;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%236b6153'/%3E%3C/svg%3E");
     background-repeat:no-repeat; background-position: right 12px center;
-    border-radius: var(--r-pill);
+    border-radius: var(--r-pill); text-overflow:ellipsis;
   }
   .clear-filters{
     font-size:0.78rem; color: var(--accent);
@@ -658,13 +658,13 @@
     color: var(--text-faint); font-family: var(--sys); font-weight:600;
     display:block; margin-bottom: 5px;
   }
-  input[type=text], input[type=number], select, textarea{
+  #bookForm input[type=text], #bookForm input[type=number], #bookForm select, #bookForm textarea{
     width:100%; padding: 9px 11px; border: none;
     border-radius: var(--r-sm); font-family: var(--sys); font-size: 0.92rem;
     background: var(--accent-soft); color: var(--text);
   }
   textarea{ resize:vertical; min-height: 54px; }
-  input:focus, select:focus, textarea:focus{ outline:none; box-shadow: 0 0 0 2.5px var(--accent); background: var(--bg-card); }
+  #bookForm input:focus, #bookForm select:focus, #bookForm textarea:focus{ outline:none; box-shadow: 0 0 0 2.5px var(--accent); background: var(--bg-card); }
 
   .modal-actions{
     display:flex; justify-content:space-between; align-items:center;
