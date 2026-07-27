@@ -392,18 +392,19 @@
   .lr-fav{ font-size: 0.95rem; flex-shrink:0; }
 
   .star-rating{
-    display:flex; align-items:center; gap:3px; height:38px;
-    background: var(--accent-soft); border-radius: var(--r-sm); padding: 0 10px;
+    display:flex; align-items:center; gap:5px; height:44px;
+    background: var(--accent-soft); border-radius: var(--r-sm); padding: 0 12px;
   }
   .star-rating .star{
-    font-size: 1.25rem; line-height:1; color: var(--border-soft); cursor:pointer;
+    font-size: 1.7rem; line-height:1; color: var(--text-faint); cursor:pointer;
+    -webkit-text-stroke: 0.5px var(--text-soft);
     transition: color 0.1s, transform 0.08s;
   }
-  .star-rating .star:hover, .star-rating .star.hover{ transform: scale(1.12); }
-  .star-rating .star.filled{ color: #C9962F; }
+  .star-rating .star:hover, .star-rating .star.hover{ transform: scale(1.15); }
+  .star-rating .star.filled{ color: #C9962F; -webkit-text-stroke: 0.5px #A8792A; }
   .star-clear{
     border:none; background:none; cursor:pointer; color: var(--text-faint);
-    font-size: 0.72rem; margin-left: 8px; padding: 2px 4px;
+    font-size: 0.8rem; margin-left: 10px; padding: 4px 6px;
   }
   .star-clear:hover{ color: var(--text-soft); }
 
