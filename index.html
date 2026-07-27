@@ -1767,8 +1767,11 @@ function openModal(book){
   document.getElementById('overlay').classList.add('open');
 }
 
-function closeModal(){
+async function closeModal(){
   clearTimeout(autoSaveTimer);
+  if(editingId && !READONLY){
+    await autoSaveNow(); // assegura que cap canvi escrit i no desat encara es perdi en tancar
+  }
   document.getElementById('overlay').classList.remove('open');
   editingId = null;
   document.getElementById('bookForm').reset();
@@ -2833,11 +2836,10 @@ document.getElementById('bookForm').addEventListener('submit', async (e) => {
   const submitBtn = document.querySelector('#bookForm button[type=submit]');
   if(submitBtn.disabled) return;
 
-  // Editant un llibre existent: les dades ja es desen soles. Aquest botó només tanca.
+  // Editant un llibre existent: les dades ja es desen soles. Aquest botó només tanca
+  // (i closeModal ja s'encarrega de desar qualsevol canvi pendent abans de fer-ho).
   if(editingId){
-    clearTimeout(autoSaveTimer);
-    await autoSaveNow();
-    closeModal();
+    await closeModal();
     renderGrid();
     return;
   }
@@ -2894,6 +2896,7 @@ document.getElementById('btnDelete').onclick = async () => {
     const { error } = await sb.from('llibres').delete().eq('id', idAEliminar);
     if(error) throw error;
     toast('Llibre eliminat');
+    editingId = null; // ara sí: la fila ja no existeix, closeModal no ha d'intentar desar-la
     closeModal();
     const idx = ALL_BOOKS.findIndex(b => b.id === idAEliminar);
     if(idx !== -1) ALL_BOOKS.splice(idx, 1);
