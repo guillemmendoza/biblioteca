@@ -685,7 +685,6 @@
     <button class="btn-outline" id="btnShare">Comparteix</button>
     <button class="btn-outline" id="btnStats">Estadístiques</button>
     <button class="btn-outline" id="btnAdvanced">⚙ Opcions avançades</button>
-    <button class="btn-outline" id="btnBiblio">📚 Bibliografia de treball</button>
     <input type="file" id="importFile" accept=".xlsx,.xls" style="display:none;">
     <button class="btn-add" id="btnAdd">+ Afegir llibre</button>
   </div>
@@ -712,20 +711,16 @@
       <div id="duplicatesList"></div>
     </div>
     <div class="advanced-section">
+      <h3>Bibliografia de treball</h3>
+      <div id="biblioList"></div>
+    </div>
+    <div class="advanced-section">
       <h3>Excel</h3>
       <div style="display:flex; gap:8px; flex-wrap:wrap;">
         <button class="btn-outline" id="btnImport">↑ Importar Excel</button>
         <button class="btn-outline" id="btnExport">↓ Exportar Excel</button>
       </div>
     </div>
-  </div>
-
-  <div class="stats-panel" id="biblioPanel" style="display:none;">
-    <div class="stats-panel-header">
-      <h2>Bibliografia de treball</h2>
-      <button class="stats-close" id="btnBiblioClose" type="button" aria-label="Tanca bibliografia de treball">✕</button>
-    </div>
-    <div id="biblioList"></div>
   </div>
 
   <div class="filters-panel" id="filtersPanel" style="display:none;">
@@ -816,14 +811,15 @@
           <label>Període històric</label>
           <select id="f_periode">
             <option value="">— sense classificar —</option>
-            <option>Antiguitat</option>
-            <option>Edat Mitjana</option>
-            <option>Edat Moderna (segles XVI-XVIII)</option>
-            <option>Segle XIX</option>
-            <option>Guerra Civil i franquisme (1936-1975)</option>
-            <option>Xile: Allende i Pinochet (1970-1990)</option>
-            <option>Segle XX-XXI</option>
-            <option>Literatura (sense període fix)</option>
+            <option>Antiguitat (fins 476)</option>
+            <option>Edat Mitjana (476-1492)</option>
+            <option>Edat Moderna (1492-1789)</option>
+            <option>El llarg segle XIX (1789-1914)</option>
+            <option>Guerres mundials i entreguerres (1914-1945)</option>
+            <option>Guerra Civil espanyola i franquisme (1936-1975)</option>
+            <option>Guerra Freda i dictadures llatinoamericanes (1945-1991)</option>
+            <option>Món contemporani (1991-avui)</option>
+            <option>Literatura i assaig (sense període fix)</option>
           </select>
         </div>
         <div>
@@ -955,15 +951,51 @@ const AREA_COLORS = {
 };
 
 const PERIOD_ORDER = [
-  'Antiguitat',
-  'Edat Mitjana',
-  'Edat Moderna (segles XVI-XVIII)',
-  'Segle XIX',
-  'Guerra Civil i franquisme (1936-1975)',
-  'Xile: Allende i Pinochet (1970-1990)',
-  'Segle XX-XXI',
-  'Literatura (sense període fix)',
+  'Antiguitat (fins 476)',
+  'Edat Mitjana (476-1492)',
+  'Edat Moderna (1492-1789)',
+  'El llarg segle XIX (1789-1914)',
+  'Guerres mundials i entreguerres (1914-1945)',
+  'Guerra Civil espanyola i franquisme (1936-1975)',
+  'Guerra Freda i dictadures llatinoamericanes (1945-1991)',
+  'Món contemporani (1991-avui)',
+  'Literatura i assaig (sense període fix)',
 ];
+
+const ROMAN_CENTURIES = {
+  i:1, ii:2, iii:3, iv:4, v:5, vi:6, vii:7, viii:8, ix:9, x:10,
+  xi:11, xii:12, xiii:13, xiv:14, xv:15, xvi:16, xvii:17, xviii:18,
+  xix:19, xx:20, xxi:21,
+};
+
+function extractEventYear(b){
+  const text = [b.titol, b.subtitol, b.paraules_clau, b.resum].filter(Boolean).join(' ').toLowerCase();
+
+  // 1. Any concret de 4 xifres (agafa el primer que troba, sol ser el rellevant
+  // en un rang com "1936-1939" o en una data solta com "1973")
+  const anyMatch = text.match(/\b(1[0-9]{3}|20[0-2][0-9])\b/);
+  if(anyMatch) return parseInt(anyMatch[1]);
+
+  // 2. Si no hi ha any explícit, prova amb "segle X" (aproximació al mig del segle)
+  const segleMatch = text.match(/segle\s+(x{0,3}(?:ix|iv|v?i{0,3}))\b/i);
+  if(segleMatch){
+    const num = ROMAN_CENTURIES[segleMatch[1].toLowerCase()];
+    if(num) return (num - 1) * 100 + 50;
+  }
+
+  return null;
+}
+
+function sortByEventYear(books){
+  return [...books].sort((a, b) => {
+    const ya = extractEventYear(a);
+    const yb = extractEventYear(b);
+    if(ya == null && yb == null) return (a.titol||'').localeCompare(b.titol||'', 'ca');
+    if(ya == null) return 1;
+    if(yb == null) return -1;
+    return ya - yb;
+  });
+}
 
 function buildChronoHeader(periode, count){
   const header = document.createElement('div');
@@ -1230,12 +1262,14 @@ function renderGrid(){
     });
     PERIOD_ORDER.forEach(periode => {
       if(!grups[periode]) return;
-      grid.appendChild(buildChronoHeader(periode, grups[periode].length));
-      grups[periode].forEach(b => grid.appendChild(buildListRow(b)));
+      const ordenats = sortByEventYear(grups[periode]);
+      grid.appendChild(buildChronoHeader(periode, ordenats.length));
+      ordenats.forEach(b => grid.appendChild(buildListRow(b)));
     });
     if(grups['Sense classificar']){
-      grid.appendChild(buildChronoHeader('Sense classificar', grups['Sense classificar'].length));
-      grups['Sense classificar'].forEach(b => grid.appendChild(buildListRow(b)));
+      const ordenats = sortByEventYear(grups['Sense classificar']);
+      grid.appendChild(buildChronoHeader('Sense classificar', ordenats.length));
+      ordenats.forEach(b => grid.appendChild(buildListRow(b)));
     }
     return;
   }
@@ -1503,20 +1537,10 @@ document.getElementById('btnAdvanced').onclick = () => {
   const panel = document.getElementById('advancedPanel');
   const visible = panel.style.display !== 'none';
   panel.style.display = visible ? 'none' : 'block';
-  if(!visible){ renderIncomplete(); renderDuplicates(); }
+  if(!visible){ renderIncomplete(); renderDuplicates(); renderBiblio(); }
 };
 document.getElementById('btnAdvancedClose').onclick = () => {
   document.getElementById('advancedPanel').style.display = 'none';
-};
-
-document.getElementById('btnBiblio').onclick = () => {
-  const panel = document.getElementById('biblioPanel');
-  const visible = panel.style.display !== 'none';
-  panel.style.display = visible ? 'none' : 'block';
-  if(!visible) renderBiblio();
-};
-document.getElementById('btnBiblioClose').onclick = () => {
-  document.getElementById('biblioPanel').style.display = 'none';
 };
 
 function renderBiblio(){
@@ -1552,7 +1576,7 @@ function renderBiblio(){
     el.addEventListener('click', () => {
       const book = ALL_BOOKS.find(b => b.id === el.dataset.id);
       if(book){
-        document.getElementById('biblioPanel').style.display = 'none';
+        document.getElementById('advancedPanel').style.display = 'none';
         openModal(book);
       }
     });
