@@ -451,6 +451,24 @@
     gap: 14px;
   }
 
+  .advanced-tabs{
+    display:flex; flex-wrap:wrap; gap:6px;
+    background: var(--track); border-radius: 12px; padding: 4px;
+    margin-bottom: 20px;
+  }
+  .adv-tab{
+    flex: 1 1 auto; white-space:nowrap;
+    border:none; background:transparent; cursor:pointer;
+    font-family: var(--sys); font-weight:600; font-size:0.8rem;
+    color: var(--text-soft); padding: 9px 12px; border-radius: 9px;
+    transition: background 0.15s, color 0.15s;
+  }
+  .adv-tab.active{
+    background: var(--bg-card); color: var(--text);
+    box-shadow: 0 1px 4px rgba(43,38,32,0.18), 0 1px 1px rgba(43,38,32,0.06);
+  }
+  .adv-tab:active{ transform: scale(0.97); }
+
   .advanced-section{ margin-bottom: 20px; }
   .advanced-section:last-child{ margin-bottom: 0; }
   .advanced-section h3{
@@ -741,20 +759,23 @@
       <h2>Opcions avançades</h2>
       <button class="stats-close" id="btnAdvancedClose" type="button" aria-label="Tanca opcions avançades">✕</button>
     </div>
-    <div class="advanced-section">
-      <h3>Dades incompletes</h3>
+    <div class="advanced-tabs" id="advancedTabs">
+      <button type="button" class="adv-tab active" data-tab="incomplete">Dades incompletes</button>
+      <button type="button" class="adv-tab" data-tab="duplicates">Duplicats d'edició</button>
+      <button type="button" class="adv-tab" data-tab="biblio">Bibliografia de treball</button>
+      <button type="button" class="adv-tab" data-tab="excel">Excel</button>
+    </div>
+
+    <div class="advanced-section adv-panel" data-panel="incomplete">
       <div id="incompleteList"></div>
     </div>
-    <div class="advanced-section">
-      <h3>Possibles duplicats d'edició</h3>
+    <div class="advanced-section adv-panel" data-panel="duplicates" style="display:none;">
       <div id="duplicatesList"></div>
     </div>
-    <div class="advanced-section">
-      <h3>Bibliografia de treball</h3>
+    <div class="advanced-section adv-panel" data-panel="biblio" style="display:none;">
       <div id="biblioList"></div>
     </div>
-    <div class="advanced-section">
-      <h3>Excel</h3>
+    <div class="advanced-section adv-panel" data-panel="excel" style="display:none;">
       <div style="display:flex; gap:8px; flex-wrap:wrap;">
         <button class="btn-outline" id="btnImport">↑ Importar Excel</button>
         <button class="btn-outline" id="btnExport">↓ Exportar Excel</button>
@@ -1737,11 +1758,32 @@ document.getElementById('btnStatsClose').onclick = () => {
   document.getElementById('statsPanel').style.display = 'none';
 };
 
+const ADVANCED_RENDERERS = {
+  incomplete: renderIncomplete,
+  duplicates: renderDuplicates,
+  biblio: renderBiblio,
+  excel: () => {},
+};
+
+function switchAdvancedTab(tab){
+  document.querySelectorAll('.adv-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  document.querySelectorAll('.adv-panel').forEach(p => p.style.display = p.dataset.panel === tab ? 'block' : 'none');
+  const renderer = ADVANCED_RENDERERS[tab];
+  if(renderer) renderer();
+}
+
+document.querySelectorAll('.adv-tab').forEach(tab => {
+  tab.addEventListener('click', () => switchAdvancedTab(tab.dataset.tab));
+});
+
 document.getElementById('btnAdvanced').onclick = () => {
   const panel = document.getElementById('advancedPanel');
   const visible = panel.style.display !== 'none';
   panel.style.display = visible ? 'none' : 'block';
-  if(!visible){ renderIncomplete(); renderDuplicates(); renderBiblio(); }
+  if(!visible){
+    const actiu = document.querySelector('.adv-tab.active');
+    switchAdvancedTab(actiu ? actiu.dataset.tab : 'incomplete');
+  }
 };
 document.getElementById('btnAdvancedClose').onclick = () => {
   document.getElementById('advancedPanel').style.display = 'none';
