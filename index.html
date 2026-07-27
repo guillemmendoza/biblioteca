@@ -925,6 +925,7 @@
       <button type="button" class="adv-tab" data-tab="duplicates">Duplicats d'edició</button>
       <button type="button" class="adv-tab" data-tab="biblio">Bibliografia de treball</button>
       <button type="button" class="adv-tab" data-tab="excel">Excel</button>
+      <button type="button" class="adv-tab" data-tab="discogs">💿 Discogs</button>
     </div>
 
     <div class="advanced-section adv-panel" data-panel="stats">
@@ -959,6 +960,19 @@
         <button class="btn-outline" id="btnImport">↑ Importar Excel</button>
         <button class="btn-outline" id="btnExport">↓ Exportar Excel</button>
       </div>
+    </div>
+    <div class="advanced-section adv-panel" data-panel="discogs" style="display:none;">
+      <p style="font-size:0.85rem; color:var(--text-soft); margin:0 0 14px;">
+        El teu token de Discogs es guarda només en aquest navegador (mai al codi de la pàgina, que és públic).
+        Genera'n un a <a href="https://www.discogs.com/settings/developers" target="_blank" style="color:var(--accent); font-weight:600;">discogs.com/settings/developers</a> si encara no en tens.
+      </p>
+      <div class="wishlist-form">
+        <input type="text" id="discogs_token" placeholder="El teu token personal de Discogs…">
+        <input type="text" id="discogs_username" placeholder="El teu nom d'usuari de Discogs…">
+        <button type="button" class="btn btn-primary" id="btnDiscogsSaveToken">Desa</button>
+      </div>
+      <button class="btn btn-primary" id="btnDiscogsImport" style="margin-top:6px;">💿 Importa la meva col·lecció de Discogs</button>
+      <div id="discogsImportStatus" style="font-size:0.82rem; color:var(--text-soft); margin-top:10px;"></div>
     </div>
   </div>
 
@@ -2197,6 +2211,7 @@ const ADVANCED_RENDERERS = {
   duplicates: renderDuplicates,
   biblio: renderBiblio,
   excel: () => {},
+  discogs: renderDiscogsTab,
 };
 
 function switchAdvancedTab(tab){
@@ -2221,6 +2236,100 @@ document.getElementById('btnAdvanced').onclick = () => {
 };
 document.getElementById('btnAdvancedClose').onclick = () => {
   document.getElementById('advancedPanel').style.display = 'none';
+};
+
+function renderDiscogsTab(){
+  document.getElementById('discogs_token').value = getDiscogsToken();
+  document.getElementById('discogs_username').value = getDiscogsUsername();
+}
+
+document.getElementById('btnDiscogsSaveToken').onclick = () => {
+  const token = document.getElementById('discogs_token').value.trim();
+  const username = document.getElementById('discogs_username').value.trim();
+  localStorage.setItem('biblioteca_discogs_token', token);
+  localStorage.setItem('biblioteca_discogs_username', username);
+  toast('Desat en aquest navegador');
+};
+
+document.getElementById('btnDiscogsImport').onclick = async () => {
+  if(READONLY) return;
+  const token = getDiscogsToken() || document.getElementById('discogs_token').value.trim();
+  const username = getDiscogsUsername() || document.getElementById('discogs_username').value.trim();
+  if(!token || !username){ toast('Cal el token i el nom d\'usuari primer', 'error'); return; }
+  localStorage.setItem('biblioteca_discogs_token', token);
+  localStorage.setItem('biblioteca_discogs_username', username);
+
+  const btn = document.getElementById('btnDiscogsImport');
+  const statusEl = document.getElementById('discogsImportStatus');
+  btn.disabled = true;
+  statusEl.textContent = 'Connectant amb Discogs…';
+
+  try{
+    let page = 1;
+    let totalPages = 1;
+    const totsElsDiscos = [];
+    do{
+      const res = await fetch(`https://api.discogs.com/users/${encodeURIComponent(username)}/collection/folders/0/releases?token=${token}&per_page=100&page=${page}`);
+      if(!res.ok) throw new Error('Discogs ha retornat un error. Revisa el token i el nom d\'usuari.');
+      const json = await res.json();
+      totsElsDiscos.push(...(json.releases || []));
+      totalPages = json.pagination ? json.pagination.pages : 1;
+      statusEl.textContent = `Descarregant la col·lecció… pàgina ${page} de ${totalPages} (${totsElsDiscos.length} discos fins ara)`;
+      page++;
+    } while(page <= totalPages);
+
+    // Evitar duplicats: comparem amb el que ja hi ha per titol+autor normalitzats
+    const existents = new Set(
+      ALL_BOOKS.filter(b => b.tipus_document === 'Vinil' || b.tipus_document === 'CD')
+        .map(b => (b.titol||'').toLowerCase().trim() + '|' + (b.autor||'').toLowerCase().trim())
+    );
+
+    const nous = [];
+    for(const item of totsElsDiscos){
+      const info = item.basic_information || {};
+      let album = info.title || '';
+      const artistes = (info.artists || []).map(a => toCognomNom((a.name||'').replace(/\s*\(\d+\)$/, ''))).filter(Boolean).join('; ');
+      const clau = album.toLowerCase().trim() + '|' + artistes.toLowerCase().trim();
+      if(existents.has(clau)) continue;
+      existents.add(clau);
+
+      const formats = (info.formats || []).flatMap(f => [f.name, ...(f.descriptions||[])]);
+      const esVinil = formats.some(f => /vinyl|lp/i.test(f));
+      const esCD = formats.some(f => /cd/i.test(f));
+
+      nous.push({
+        titol: album,
+        autor: artistes || null,
+        any_publicacio: info.year || null,
+        editorial: [...new Set((info.labels||[]).map(l => l.name))].join('; ') || null,
+        volum: [...new Set((info.labels||[]).map(l => l.catno).filter(Boolean))].join('; ') || null,
+        tipologia: [...new Set([...(info.genres||[]), ...(info.styles||[])])].join(', ') || null,
+        tipus_document: esCD && !esVinil ? 'CD' : 'Vinil',
+        afegit_per: CURRENT_USER || null,
+      });
+    }
+
+    if(!nous.length){
+      statusEl.textContent = `Ja tens tots els discos de la teva col·lecció de Discogs (${totsElsDiscos.length}) importats. Cap de nou.`;
+      return;
+    }
+
+    statusEl.textContent = `Desant ${nous.length} discos nous…`;
+    const { data, error } = await sb.from('llibres').insert(nous).select();
+    if(error) throw error;
+    if(data) ALL_BOOKS.push(...data);
+
+    statusEl.textContent = `Fet! S'han importat ${nous.length} discos nous de ${totsElsDiscos.length} a la teva col·lecció de Discogs.`;
+    toast(`${nous.length} discos importats`);
+    renderHeaderStats();
+    renderFilters();
+    renderGrid();
+  }catch(err){
+    console.error(err);
+    statusEl.textContent = 'Error important: ' + err.message;
+  }finally{
+    btn.disabled = false;
+  }
 };
 
 function renderDiscover(){
@@ -3129,13 +3238,49 @@ async function tryMusicBrainz(codi){
   }catch(e){ console.error(e); return null; }
 }
 
+function getDiscogsToken(){ return localStorage.getItem('biblioteca_discogs_token') || ''; }
+function getDiscogsUsername(){ return localStorage.getItem('biblioteca_discogs_username') || ''; }
+
+async function tryDiscogsBarcode(codi){
+  const token = getDiscogsToken();
+  if(!token) return null;
+  try{
+    const res = await fetch(`https://api.discogs.com/database/search?barcode=${codi}&token=${token}`);
+    if(!res.ok) return null;
+    const json = await res.json();
+    const hit = json.results && json.results[0];
+    if(!hit) return null;
+    // El titol de cerca sol venir com "Artista - Àlbum"
+    let artista = '', album = hit.title || '';
+    if(album.includes(' - ')){
+      const parts = album.split(' - ');
+      artista = toCognomNom(parts[0].trim());
+      album = parts.slice(1).join(' - ').trim();
+    }
+    return {
+      titol: album,
+      autor: artista,
+      any: hit.year ? String(hit.year) : '',
+      editorial: (hit.label || []).join('; '),
+      volum: hit.catno || '',
+      genere: [...(hit.genre||[]), ...(hit.style||[])].join(', '),
+    };
+  }catch(e){ console.error(e); return null; }
+}
+
 async function lookupCodiMusica(codi){
   const raw = document.getElementById('f_isbn_lookup').value.trim();
   const statusEl = document.getElementById('isbnLookupStatus');
   const btn = document.getElementById('btnLookupIsbn');
   statusEl.textContent = 'Consultant MusicBrainz…';
   try{
-    const hit = await tryMusicBrainz(codi);
+    let hit = await tryMusicBrainz(codi);
+    let font = 'MusicBrainz';
+    if(!hit && getDiscogsToken()){
+      statusEl.textContent = 'No trobat a MusicBrainz, provant Discogs…';
+      hit = await tryDiscogsBarcode(codi);
+      font = 'Discogs';
+    }
     if(hit){
       if(hit.titol) document.getElementById('f_titol').value = hit.titol;
       if(hit.autor) document.getElementById('f_autor').value = hit.autor;
@@ -3144,11 +3289,11 @@ async function lookupCodiMusica(codi){
       if(hit.volum) document.getElementById('f_volum').value = hit.volum;
       if(hit.genere) document.getElementById('f_tipologia').value = hit.genere;
       document.getElementById('f_isbn').value = raw;
-      statusEl.textContent = 'Dades trobades a MusicBrainz ✓';
+      statusEl.textContent = `Dades trobades a ${font} ✓`;
     } else {
       document.getElementById('f_isbn').value = raw;
       const urlDiscogs = `https://www.discogs.com/search/?q=${encodeURIComponent(raw)}&type=release`;
-      statusEl.innerHTML = `MusicBrainz no té aquest codi fitxat (passa sovint, les dades de codi de barres hi són opcionals). <a href="${urlDiscogs}" target="_blank" style="color:var(--accent); font-weight:600;">Cerca'l a Discogs ›</a>`;
+      statusEl.innerHTML = `No s'ha trobat aquest codi ${getDiscogsToken() ? 'ni a MusicBrainz ni a Discogs' : '(passa sovint, les dades de codi de barres hi són opcionals)'}. <a href="${urlDiscogs}" target="_blank" style="color:var(--accent); font-weight:600;">Cerca'l a Discogs ›</a>`;
     }
   }catch(err){
     console.error(err);
