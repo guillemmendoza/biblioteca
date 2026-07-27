@@ -1414,7 +1414,7 @@ function renderPeriodGroup(grid, periode, books){
 
 let ALL_BOOKS = [];
 let editingId = null;
-let activeFilters = { area: null, ubicacio: '', format: '', idioma: '', llegit: '', favorits: false, articles: false };
+let activeFilters = { area: null, ubicacio: '', format: '', idioma: '', llegit: '', favorits: false, articles: false, genere: '', estat: '' };
 let catalogSection = localStorage.getItem('biblioteca_section') || 'llibres';
 let searchTerm = '';
 let sortBy = 'titol';
@@ -1448,8 +1448,14 @@ function setCatalogSection(sec){
     const esBtnMusica = b.dataset.tipus === 'Vinil' || b.dataset.tipus === 'CD';
     b.style.display = (sec === 'musica') === esBtnMusica ? '' : 'none';
   });
+  const tabBiblio = document.querySelector('.adv-tab[data-tab="biblio"]');
+  if(tabBiblio){
+    tabBiblio.style.display = sec === 'musica' ? 'none' : '';
+    if(sec === 'musica' && tabBiblio.classList.contains('active')) switchAdvancedTab('stats');
+  }
   incompleteFieldFilter = null;
   renderHeaderStats();
+  renderContinueReading();
   renderFilters();
   renderGrid();
 }
@@ -1564,6 +1570,7 @@ async function loadBooks(){
 
 function renderContinueReading(){
   const el = document.getElementById('continueReading');
+  if(catalogSection === 'musica'){ el.innerHTML = ''; return; }
   const enCurs = ALL_BOOKS.filter(b => b.llegit === 'Llegint');
   if(!enCurs.length){ el.innerHTML = ''; return; }
 
@@ -1607,7 +1614,8 @@ function renderHeaderStats(){
 
 function uniqueValues(field, splitOn){
   const set = new Set();
-  ALL_BOOKS.forEach(b=>{
+  const esMusicaB = b => b.tipus_document === 'Vinil' || b.tipus_document === 'CD';
+  ALL_BOOKS.filter(b => !b.es_desig && (catalogSection === 'musica' ? esMusicaB(b) : !esMusicaB(b))).forEach(b=>{
     const v = b[field];
     if(!v) return;
     if(splitOn){
@@ -1620,19 +1628,29 @@ function uniqueValues(field, splitOn){
 }
 
 function renderFilters(){
-  const areas = Object.keys(AREA_COLORS);
+  const esMusicaSeccio = catalogSection === 'musica';
   const ubicacions = uniqueValues('ubicacio', ',');
-  const formats = uniqueValues('format', ',');
   const idiomes = uniqueValues('idioma', ',');
 
   const el = document.getElementById('filters');
   el.innerHTML = '';
 
-  el.appendChild(makeSelect('area', 'Àrea', areas));
-  el.appendChild(makeSelect('ubicacio', 'Ubicació', ubicacions));
-  el.appendChild(makeSelect('format', 'Format', formats));
-  el.appendChild(makeSelect('idioma', 'Idioma', idiomes));
-  el.appendChild(makeSelect('llegit', 'Llegit', ['Sí','Llegint','No']));
+  if(esMusicaSeccio){
+    const estats = uniqueValues('estat_conservacio');
+    const generes = uniqueValues('tipologia', ',');
+    el.appendChild(makeSelect('genere', 'Gènere', generes));
+    el.appendChild(makeSelect('ubicacio', 'Ubicació', ubicacions));
+    el.appendChild(makeSelect('idioma', 'Idioma', idiomes));
+    el.appendChild(makeSelect('estat', 'Estat de conservació', estats));
+  } else {
+    const areas = Object.keys(AREA_COLORS);
+    const formats = uniqueValues('format', ',');
+    el.appendChild(makeSelect('area', 'Àrea', areas));
+    el.appendChild(makeSelect('ubicacio', 'Ubicació', ubicacions));
+    el.appendChild(makeSelect('format', 'Format', formats));
+    el.appendChild(makeSelect('idioma', 'Idioma', idiomes));
+    el.appendChild(makeSelect('llegit', 'Llegit', ['Sí','Llegint','No']));
+  }
 
   const favChip = document.createElement('div');
   favChip.className = 'chip' + (activeFilters.favorits ? ' active' : '');
@@ -1644,15 +1662,17 @@ function renderFilters(){
   };
   el.appendChild(favChip);
 
-  const artChip = document.createElement('div');
-  artChip.className = 'chip' + (activeFilters.articles ? ' active' : '');
-  artChip.innerHTML = `📄 Només articles`;
-  artChip.onclick = () => {
-    incompleteFieldFilter = null;
-    activeFilters.articles = !activeFilters.articles;
-    renderFilters(); renderGrid();
-  };
-  el.appendChild(artChip);
+  if(!esMusicaSeccio){
+    const artChip = document.createElement('div');
+    artChip.className = 'chip' + (activeFilters.articles ? ' active' : '');
+    artChip.innerHTML = `📄 Només articles`;
+    artChip.onclick = () => {
+      incompleteFieldFilter = null;
+      activeFilters.articles = !activeFilters.articles;
+      renderFilters(); renderGrid();
+    };
+    el.appendChild(artChip);
+  }
 
   updateFilterBadge();
 
@@ -1660,7 +1680,7 @@ function renderFilters(){
   clear.className = 'clear-filters';
   clear.textContent = 'Neteja filtres';
   clear.onclick = () => {
-    activeFilters = { area:null, ubicacio:'', format:'', idioma:'', llegit:'', favorits:false, articles:false };
+    activeFilters = { area:null, ubicacio:'', format:'', idioma:'', llegit:'', favorits:false, articles:false, genere:'', estat:'' };
     incompleteFieldFilter = null;
     document.getElementById('searchInput').value='';
     document.getElementById('searchClear').classList.remove('show');
@@ -1696,6 +1716,8 @@ function matchesFilters(b){
   if(activeFilters.format && !(b.format||'').includes(activeFilters.format)) return false;
   if(activeFilters.idioma && !(b.idioma||'').includes(activeFilters.idioma)) return false;
   if(activeFilters.llegit && b.llegit !== activeFilters.llegit) return false;
+  if(activeFilters.genere && !(b.tipologia||'').includes(activeFilters.genere)) return false;
+  if(activeFilters.estat && b.estat_conservacio !== activeFilters.estat) return false;
   if(activeFilters.favorits && !b.favorit) return false;
   if(activeFilters.articles && b.tipus_document !== 'Article') return false;
   if(searchTerm){
@@ -2334,13 +2356,14 @@ document.getElementById('btnDiscogsImport').onclick = async () => {
 
 function renderDiscover(){
   const body = document.getElementById('discoverBody');
-  const catalogats = ALL_BOOKS.filter(b => !b.es_desig && b.paraules_clau);
+  const esMusicaB = b => b.tipus_document === 'Vinil' || b.tipus_document === 'CD';
+  const catalogats = ALL_BOOKS.filter(b => !b.es_desig && b.paraules_clau && (catalogSection === 'musica' ? esMusicaB(b) : !esMusicaB(b)));
 
-  // Llavors: llibres que t'han agradat (favorits, ben valorats o llegits) i que tenen paraules clau
+  // Llavors: coses que t'han agradat (favorits, ben valorats o llegits) i que tenen paraules clau
   const llavors = catalogats.filter(b => b.favorit || (b.valoracio && b.valoracio >= 4) || b.llegit === 'Sí');
   const font = llavors.length ? llavors : catalogats;
   if(!font.length){
-    body.innerHTML = '<div style="color:var(--text-soft); font-size:0.85rem;">Encara no hi ha prou paraules clau per fer recomanacions. Omple\'n unes quantes fitxes i torna-hi.</div>';
+    body.innerHTML = `<div style="color:var(--text-soft); font-size:0.85rem;">Encara no hi ha prou paraules clau ${catalogSection === 'musica' ? 'als discos' : 'als llibres'} per fer recomanacions. Omple'n unes quantes fitxes i torna-hi.</div>`;
     return;
   }
 
@@ -2355,7 +2378,7 @@ function renderDiscover(){
     .slice(0, 6);
 
   if(!suggerits.length){
-    body.innerHTML = `<div style="color:var(--text-soft); font-size:0.85rem;">No he trobat cap llibre pendent relacionat amb <b>${escapeHtml(llavor.titol)}</b>. Prem "Descobreix" un altre cop per provar-ho amb un altre llibre.</div>`;
+    body.innerHTML = `<div style="color:var(--text-soft); font-size:0.85rem;">No he trobat cap ${catalogSection === 'musica' ? 'disc' : 'llibre'} pendent relacionat amb <b>${escapeHtml(llavor.titol)}</b>. Prem "Descobreix" un altre cop per provar-ho amb un altre.</div>`;
     return;
   }
 
@@ -2459,8 +2482,10 @@ document.getElementById('btnWishlistAdd').onclick = async () => {
 };
 
 function renderBiblio(){
+  const esMusicaB = b => b.tipus_document === 'Vinil' || b.tipus_document === 'CD';
+  const catalogats = ALL_BOOKS.filter(b => !b.es_desig && (catalogSection === 'musica' ? esMusicaB(b) : !esMusicaB(b)));
   const grups = {};
-  ALL_BOOKS.forEach(b => {
+  catalogats.forEach(b => {
     if(!b.projecte_recerca || !b.projecte_recerca.trim()) return;
     (grups[b.projecte_recerca] = grups[b.projecte_recerca] || []).push(b);
   });
@@ -2499,7 +2524,18 @@ function renderBiblio(){
 }
 
 function renderIncomplete(){
-  const camps = [
+  const esMusicaSeccio = catalogSection === 'musica';
+  const esMusicaB = b => b.tipus_document === 'Vinil' || b.tipus_document === 'CD';
+  const catalogats = ALL_BOOKS.filter(b => !b.es_desig && (esMusicaSeccio ? esMusicaB(b) : !esMusicaB(b)));
+
+  const camps = esMusicaSeccio ? [
+    { key: 'autor', label: 'Sense artista' },
+    { key: 'tipologia', label: 'Sense gènere' },
+    { key: 'any_publicacio', label: 'Sense any' },
+    { key: 'ubicacio', label: 'Sense ubicació' },
+    { key: 'estat_conservacio', label: 'Sense estat de conservació' },
+    { key: 'paraules_clau', label: 'Sense paraules clau' },
+  ] : [
     { key: 'area_principal', label: 'Sense àrea' },
     { key: 'idioma', label: 'Sense idioma' },
     { key: 'format', label: 'Sense format' },
@@ -2508,7 +2544,7 @@ function renderIncomplete(){
     { key: 'paraules_clau', label: 'Sense paraules clau' },
   ];
   const html = camps.map(c => {
-    const buits = ALL_BOOKS.filter(b => !b[c.key] || !String(b[c.key]).trim());
+    const buits = catalogats.filter(b => !b[c.key] || !String(b[c.key]).trim());
     if(!buits.length) return '';
     const mostra = buits.slice(0, 6).map(b => escapeHtml(b.titol)).join(', ');
     const resta = buits.length > 6 ? ` i ${buits.length - 6} més` : '';
@@ -2522,7 +2558,7 @@ function renderIncomplete(){
   }).filter(Boolean).join('');
 
   document.getElementById('incompleteList').innerHTML = html ||
-    '<div style="color:var(--c-historia); font-weight:600; font-size:0.85rem;">✓ Totes les fitxes tenen les dades bàsiques completes.</div>';
+    `<div style="color:var(--c-historia); font-weight:600; font-size:0.85rem;">✓ Totes les fitxes ${esMusicaSeccio ? 'de música' : 'de llibres'} tenen les dades bàsiques completes.</div>`;
 
   document.querySelectorAll('.incomplete-clickable').forEach(el => {
     const open = () => showIncompleteField(el.dataset.field);
@@ -2533,7 +2569,7 @@ function renderIncomplete(){
 
 function showIncompleteField(field){
   incompleteFieldFilter = field;
-  activeFilters = { area:null, ubicacio:'', format:'', idioma:'', llegit:'', favorits:false, articles:false };
+  activeFilters = { area:null, ubicacio:'', format:'', idioma:'', llegit:'', favorits:false, articles:false, genere:'', estat:'' };
   searchTerm = '';
   document.getElementById('searchInput').value = '';
   document.getElementById('searchClear').classList.remove('show');
@@ -2556,8 +2592,10 @@ function duplicateKey(b){
 }
 
 function renderDuplicates(){
+  const esMusicaB = b => b.tipus_document === 'Vinil' || b.tipus_document === 'CD';
+  const catalogats = ALL_BOOKS.filter(b => !b.es_desig && (catalogSection === 'musica' ? esMusicaB(b) : !esMusicaB(b)));
   const grups = {};
-  ALL_BOOKS.forEach(b => {
+  catalogats.forEach(b => {
     const key = duplicateKey(b);
     if(!key) return;
     (grups[key] = grups[key] || []).push(b);
@@ -2632,26 +2670,20 @@ function countBy(field, splitOn){
 
 function renderStats(){
   const grid = document.getElementById('statsGrid');
-  const catalogats = ALL_BOOKS.filter(b => !b.es_desig);
+  const esMusicaB = b => b.tipus_document === 'Vinil' || b.tipus_document === 'CD';
+  const esMusicaSeccio = catalogSection === 'musica';
+  const catalogats = ALL_BOOKS.filter(b => !b.es_desig && (esMusicaSeccio ? esMusicaB(b) : !esMusicaB(b)));
   const total = catalogats.length;
-  const llegits = catalogats.filter(b => b.llegit === 'Sí').length;
-  const llegintAra = catalogats.filter(b => b.llegit === 'Llegint').length;
-  const pendents = catalogats.filter(b => b.llegit !== 'Sí' && b.llegit !== 'Llegint').length;
   const guillem = catalogats.filter(b => (b.ubicacio||'').includes('Guillem')).length;
   const nastia = catalogats.filter(b => (b.ubicacio||'').includes('Nàstia')).length;
-  const digital = catalogats.filter(b => (b.ubicacio||'').includes('Synology')).length;
 
   const ambPreu = catalogats.filter(b => typeof b.preu === 'number' && !isNaN(b.preu));
   const valorTotal = ambPreu.reduce((sum, b) => sum + b.preu, 0);
   const valorFmt = valorTotal.toLocaleString('ca-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
 
-  const byArea = countBy('area_principal', ',');
-  const byIdioma = countBy('idioma', ',');
-  const byFormat = countBy('format', ',');
-
-  // Adquisicions per any
+  // Adquisicions per any, nomes de la seccio activa
   const byAny = {};
-  ALL_BOOKS.forEach(b => {
+  catalogats.forEach(b => {
     const d = b.data_adquisicio;
     if(!d) return;
     const y = String(d).slice(0,4);
@@ -2670,6 +2702,49 @@ function renderStats(){
     ).join('');
     return `<div class="stats-block"><h3>${title}</h3>${rows}</div>`;
   }
+
+  // countByLocal: igual que countBy pero nomes sobre catalogats (ja filtrat per seccio)
+  function countByLocal(field, splitOn){
+    const map = {};
+    catalogats.forEach(b => {
+      const v = b[field];
+      if(!v) return;
+      const parts = splitOn ? v.split(splitOn).map(p=>p.trim()) : [v];
+      parts.forEach(p => { if(p) map[p] = (map[p]||0) + 1; });
+    });
+    return Object.entries(map).sort((a,b) => b[1]-a[1]);
+  }
+
+  if(esMusicaSeccio){
+    const byGenere = countByLocal('tipologia', ',');
+    const byEstat = countByLocal('estat_conservacio');
+    const byTipus = countByLocal('tipus_document');
+    grid.innerHTML = `
+      <div class="stats-block" style="grid-column: 1 / -1;">
+        <h3>Resum</h3>
+        <div class="stats-numbers">
+          <div class="stats-num"><b>${total}</b><span>Total discos</span></div>
+          <div class="stats-num"><b>${guillem}</b><span>De Guillem</span></div>
+          <div class="stats-num"><b>${nastia}</b><span>De Nàstia</span></div>
+          <div class="stats-num"><b>${valorFmt}</b><span>Valor col·lecció</span></div>
+        </div>
+        ${ambPreu.length ? `<div style="font-size:0.72rem; color:var(--text-faint); margin-top:8px; font-family:var(--sys);">Calculat a partir de ${ambPreu.length} de ${total} discos amb preu registrat.</div>` : ''}
+      </div>
+      ${barBlock('Per format', byTipus, l => l === 'Vinil' ? 'var(--c-historia)' : 'var(--c-literatura)', 2)}
+      ${byGenere.length ? barBlock('Per gènere', byGenere, () => 'var(--accent)', 8) : ''}
+      ${byEstat.length ? barBlock('Per estat de conservació', byEstat, () => 'var(--c-musica)', 8) : ''}
+      ${byAnyArr.length ? barBlock('Adquisicions per any', byAnyArr, () => 'var(--c-periodisme)', 10) : ''}
+    `;
+    return;
+  }
+
+  const llegits = catalogats.filter(b => b.llegit === 'Sí').length;
+  const llegintAra = catalogats.filter(b => b.llegit === 'Llegint').length;
+  const pendents = catalogats.filter(b => b.llegit !== 'Sí' && b.llegit !== 'Llegint').length;
+  const digital = catalogats.filter(b => (b.ubicacio||'').includes('Synology')).length;
+  const byArea = countByLocal('area_principal', ',');
+  const byIdioma = countByLocal('idioma', ',');
+  const byFormat = countByLocal('format', ',');
 
   grid.innerHTML = `
     <div class="stats-block" style="grid-column: 1 / -1;">
@@ -2859,23 +2934,29 @@ document.getElementById('btnImportConfirm').onclick = async () => {
 
 document.getElementById('btnExport').onclick = () => {
   if(typeof XLSX === 'undefined'){ toast('No s\'ha pogut carregar l\'eina d\'Excel. Recarrega la pàgina.', 'error'); return; }
-  if(!ALL_BOOKS.length){ toast('No hi ha llibres per exportar'); return; }
+  const esMusicaB = b => b.tipus_document === 'Vinil' || b.tipus_document === 'CD';
+  const catalogats = ALL_BOOKS.filter(b => !b.es_desig && (catalogSection === 'musica' ? esMusicaB(b) : !esMusicaB(b)));
+  if(!catalogats.length){ toast(catalogSection === 'musica' ? 'No hi ha discos per exportar' : 'No hi ha llibres per exportar'); return; }
   try{
     const cols = ['titol','subtitol','volum','autor','autor_secundari','any_publicacio','editorial','isbn',
       'area_principal','tipologia','paraules_clau','resum','format','ubicacio','idioma','llegit',
       'data_adquisicio','origen','preu','comentaris','projecte_recerca'];
-    const headers = ['Títol','Subtítol','Volum','Autor','Autor secundari / Editor','Any_Publicació','Editorial',
-      'ISBN/ISSN','Àrea principal','Tipologia / Especialitat','Paraules clau','Resum','Format','Ubicació',
-      'Idioma','Llegit','Data d\'adquisició','Origen','Preu','Comentaris personals / Notes','Projecte / Recerca associada'];
+    const headers = catalogSection === 'musica'
+      ? ['Àlbum','Subtítol','Número de referència','Artista','Artista convidat / Productor','Any','Segell discogràfic',
+         'Codi de barres','Àrea principal','Gènere musical','Paraules clau','Resum','Format','Ubicació',
+         'Idioma','Llegit','Data d\'adquisició','Origen','Preu','Comentaris personals / Notes','Projecte / Recerca associada']
+      : ['Títol','Subtítol','Volum','Autor','Autor secundari / Editor','Any_Publicació','Editorial',
+         'ISBN/ISSN','Àrea principal','Tipologia / Especialitat','Paraules clau','Resum','Format','Ubicació',
+         'Idioma','Llegit','Data d\'adquisició','Origen','Preu','Comentaris personals / Notes','Projecte / Recerca associada'];
 
-    const sorted = sortBooks(ALL_BOOKS);
+    const sorted = sortBooks(catalogats);
     const data = [headers, ...sorted.map(b => cols.map(c => b[c] ?? ''))];
     const ws = XLSX.utils.aoa_to_sheet(data);
     ws['!cols'] = headers.map(() => ({ wch: 22 }));
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Classificació');
+    XLSX.utils.book_append_sheet(wb, ws, catalogSection === 'musica' ? 'Música' : 'Classificació');
     const date = new Date().toISOString().slice(0,10);
-    XLSX.writeFile(wb, `Biblioteca_Guillem_${date}.xlsx`);
+    XLSX.writeFile(wb, catalogSection === 'musica' ? `Musica_Guillem_${date}.xlsx` : `Biblioteca_Guillem_${date}.xlsx`);
     toast('Excel exportat');
   }catch(err){
     console.error(err);
