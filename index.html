@@ -382,6 +382,15 @@
   .btn-llegit.llegit{ background: var(--c-historia); color: #fff; }
   .btn-llegit.llegint{ background: var(--accent); color: #fff; }
 
+  .btn-fav{
+    border:none; background:transparent; cursor:pointer;
+    font-size: 1.05rem; line-height:1; color: var(--text-faint);
+    padding: 0 2px; transition: transform 0.1s, color 0.15s;
+  }
+  .btn-fav:active{ transform: scale(0.85); }
+  .btn-fav.actiu{ color: #C9962F; }
+  .lr-fav{ font-size: 0.95rem; flex-shrink:0; }
+
   .progres-track{
     height: 4px; border-radius: var(--r-pill); background: rgba(43,38,32,0.08);
     margin-bottom: 10px; overflow:hidden;
@@ -915,6 +924,12 @@
           <input type="number" min="0" max="100" step="5" id="f_progres" placeholder="Ex: 40">
         </div>
         <div>
+          <label>Favorit</label>
+          <label style="display:flex; align-items:center; gap:8px; font-weight:500; text-transform:none; color:var(--text); cursor:pointer; height:38px;">
+            <input type="checkbox" id="f_favorit" style="width:18px; height:18px; accent-color:#C9962F;"> ★ Marca com a favorit
+          </label>
+        </div>
+        <div>
           <label>ISBN/ISSN</label>
           <input type="text" id="f_isbn">
         </div>
@@ -1100,7 +1115,7 @@ function renderPeriodGroup(grid, periode, books){
 
 let ALL_BOOKS = [];
 let editingId = null;
-let activeFilters = { area: null, ubicacio: '', format: '', idioma: '', llegit: '' };
+let activeFilters = { area: null, ubicacio: '', format: '', idioma: '', llegit: '', favorits: false };
 let searchTerm = '';
 let sortBy = 'titol';
 
@@ -1163,6 +1178,7 @@ function showLoadError(msg){
 
 async function loadBooks(){
   if(!sb && !initSupabase()) return;
+  const scrollY = window.scrollY;
   document.getElementById('errorState').style.display = 'none';
   document.getElementById('loadingState').style.display = 'flex';
   document.getElementById('grid').style.display = 'none';
@@ -1184,6 +1200,7 @@ async function loadBooks(){
     renderHeaderStats();
     renderFilters();
     renderGrid();
+    window.scrollTo(0, scrollY);
   }catch(err){
     console.error(err);
     showLoadError('No s\'han pogut carregar els llibres. Revisa la connexió i torna-ho a provar.');
@@ -1241,13 +1258,23 @@ function renderFilters(){
   el.appendChild(makeSelect('idioma', 'Idioma', idiomes));
   el.appendChild(makeSelect('llegit', 'Llegit', ['Sí','Llegint','No']));
 
+  const favChip = document.createElement('div');
+  favChip.className = 'chip' + (activeFilters.favorits ? ' active' : '');
+  favChip.innerHTML = `★ Favorits`;
+  favChip.onclick = () => {
+    incompleteFieldFilter = null;
+    activeFilters.favorits = !activeFilters.favorits;
+    renderFilters(); renderGrid();
+  };
+  el.appendChild(favChip);
+
   updateFilterBadge();
 
   const clear = document.createElement('div');
   clear.className = 'clear-filters';
   clear.textContent = 'Neteja filtres';
   clear.onclick = () => {
-    activeFilters = { area:null, ubicacio:'', format:'', idioma:'', llegit:'' };
+    activeFilters = { area:null, ubicacio:'', format:'', idioma:'', llegit:'', favorits:false };
     incompleteFieldFilter = null;
     document.getElementById('searchInput').value='';
     document.getElementById('searchClear').classList.remove('show');
@@ -1279,6 +1306,7 @@ function matchesFilters(b){
   if(activeFilters.format && !(b.format||'').includes(activeFilters.format)) return false;
   if(activeFilters.idioma && !(b.idioma||'').includes(activeFilters.idioma)) return false;
   if(activeFilters.llegit && b.llegit !== activeFilters.llegit) return false;
+  if(activeFilters.favorits && !b.favorit) return false;
   if(searchTerm){
     const hay = [b.titol,b.autor,b.paraules_clau,b.subtitol].filter(Boolean).join(' ').toLowerCase();
     if(!hay.includes(searchTerm.toLowerCase())) return false;
@@ -1374,6 +1402,19 @@ function nextLlegitState(current){
   return 'Llegint';                       // No -> Llegint
 }
 
+function attachFavHandler(btn, b){
+  btn.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    btn.disabled = true;
+    const nou = !b.favorit;
+    const { error } = await sb.from('llibres').update({ favorit: nou, updated_at: new Date().toISOString() }).eq('id', b.id);
+    if(error){ toast('Error actualitzant', 'error'); btn.disabled = false; return; }
+    b.favorit = nou;
+    toast(nou ? '★ Afegit a favorits' : 'Tret de favorits');
+    renderGrid();
+  });
+}
+
 function attachLlegitHandler(btn, b){
   btn.addEventListener('click', async (e) => {
     e.stopPropagation();
@@ -1430,7 +1471,10 @@ function buildGridCard(b){
   card.innerHTML = `
     <div class="c-top">
       ${area ? `<span class="lr-area-pill" style="background:${color}22;color:${color}">${escapeHtml(area)}</span>` : '<span></span>'}
-      ${stamp ? `<span class="stamp ${stamp.cls}">${stamp.label}</span>` : ''}
+      <div style="display:flex; align-items:center; gap:6px;">
+        ${stamp ? `<span class="stamp ${stamp.cls}">${stamp.label}</span>` : ''}
+        <button type="button" class="btn-fav ${b.favorit ? 'actiu' : ''}" aria-label="${b.favorit ? 'Treu de favorits' : 'Marca com a favorit'}" title="${b.favorit ? 'Treu de favorits' : 'Marca com a favorit'}">${b.favorit ? '★' : '☆'}</button>
+      </div>
     </div>
     <div class="titol">${escapeHtml(b.titol)}${b.volum ? ` <span class="volum-badge">${escapeHtml(b.volum)}</span>` : ''}</div>
     <div class="autor" title="${escapeHtml(b.autor || '')}">${escapeHtml(formatAuthor(b.autor))}</div>
@@ -1440,9 +1484,11 @@ function buildGridCard(b){
       ${!READONLY ? `<button type="button" class="btn-llegit ${llegitCls}" aria-label="Canvia l'estat de lectura" title="Canvia l'estat de lectura">${llegitLabel}</button>` : (b.llegit && b.llegit !== 'No' ? `<span class="tag">${llegitLabel}</span>` : '')}
     </div>
   `;
+  const favBtn = card.querySelector('.btn-fav');
+  if(favBtn && !READONLY) attachFavHandler(favBtn, b);
   const llegitBtn = card.querySelector('.btn-llegit');
   if(llegitBtn) attachLlegitHandler(llegitBtn, b);
-  attachCardOpen(card, b, '.btn-llegit');
+  attachCardOpen(card, b, '.btn-llegit, .btn-fav');
   return card;
 }
 
@@ -1474,13 +1520,16 @@ function buildListRow(b){
       </div>
     </div>
     <div class="lr-trailing">
+      ${!READONLY ? `<button type="button" class="btn-fav lr-fav ${b.favorit ? 'actiu' : ''}" aria-label="${b.favorit ? 'Treu de favorits' : 'Marca com a favorit'}" title="${b.favorit ? 'Treu de favorits' : 'Marca com a favorit'}">${b.favorit ? '★' : '☆'}</button>` : (b.favorit ? '<span class="lr-fav actiu" aria-hidden="true">★</span>' : '')}
       ${!READONLY ? `<button type="button" class="lr-llegit ${llegitCls}" aria-label="Canvia l'estat de lectura" title="Canvia l'estat de lectura">${llegitContent}</button>` : (llegitContent ? `<span class="lr-llegit ${llegitCls}" aria-hidden="true">${llegitContent}</span>` : '')}
       <span class="lr-chevron">›</span>
     </div>
   `;
+  const favBtn = row.querySelector('.btn-fav:not([aria-hidden])');
+  if(favBtn && !READONLY) attachFavHandler(favBtn, b);
   const llegitBtn = row.querySelector('.lr-llegit:not([aria-hidden])');
   if(llegitBtn && !READONLY) attachLlegitHandler(llegitBtn, b);
-  attachCardOpen(row, b, '.lr-llegit');
+  attachCardOpen(row, b, '.lr-llegit, .btn-fav');
   return row;
 }
 
@@ -1564,6 +1613,7 @@ function openModal(book){
   f('f_idioma', book?.idioma);
   f('f_llegit', book?.llegit);
   f('f_progres', book?.progres_lectura);
+  document.getElementById('f_favorit').checked = !!book?.favorit;
   toggleProgresWrap();
   f('f_isbn', book?.isbn);
   f('f_preu', book?.preu);
@@ -1785,6 +1835,7 @@ function updateFilterBadge(){
   if(activeFilters.format) n++;
   if(activeFilters.idioma) n++;
   if(activeFilters.llegit) n++;
+  if(activeFilters.favorits) n++;
   const badge = document.getElementById('filterBadge');
   badge.textContent = n;
   badge.style.display = n > 0 ? 'inline-flex' : 'none';
@@ -2552,6 +2603,7 @@ document.getElementById('bookForm').addEventListener('submit', async (e) => {
     progres_lectura: (document.getElementById('f_llegit').value === 'Llegint' && document.getElementById('f_progres').value)
       ? Math.max(0, Math.min(100, parseInt(document.getElementById('f_progres').value)))
       : null,
+    favorit: document.getElementById('f_favorit').checked,
     isbn: document.getElementById('f_isbn').value.trim() || null,
     preu: preuVal ? parseFloat(preuVal) : null,
     data_adquisicio: document.getElementById('f_data_adquisicio').value.trim() || null,
