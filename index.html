@@ -349,6 +349,13 @@
   }
   .segmented button.active{ background: var(--bg-card); color: var(--text); box-shadow: 0 1px 3px rgba(43,38,32,0.15); }
 
+  .section-toggle{
+    width: fit-content; margin-bottom: 16px; padding: 4px;
+  }
+  .section-toggle .sec-btn{
+    padding: 9px 20px; font-size: 0.92rem; font-weight:700;
+  }
+
   .btn-outline{
     background: var(--accent-soft); color: var(--text);
     border: none; height:40px; padding: 0 15px; border-radius: var(--r-pill);
@@ -865,6 +872,11 @@
 
   <div id="continueReading"></div>
 
+  <div class="segmented section-toggle" id="sectionToggle">
+    <button type="button" class="sec-btn active" data-section="llibres">📚 Llibres</button>
+    <button type="button" class="sec-btn" data-section="musica">🎵 Música</button>
+  </div>
+
   <div class="toolbar">
     <div class="search">
       <span class="search-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg></span>
@@ -985,14 +997,16 @@
       </div>
       <div class="form-grid">
         <div class="full">
-          <div class="segmented" id="tipusDocSeg" style="width:fit-content; margin-bottom:4px;">
+          <div class="segmented" id="tipusDocSeg" style="width:fit-content; margin-bottom:4px; flex-wrap:wrap;">
             <button type="button" class="tipus-btn active" data-tipus="Llibre">📕 Llibre</button>
             <button type="button" class="tipus-btn" data-tipus="Article">📄 Article</button>
+            <button type="button" class="tipus-btn" data-tipus="Vinil">💿 Vinil</button>
+            <button type="button" class="tipus-btn" data-tipus="CD">💽 CD</button>
           </div>
           <input type="hidden" id="f_tipus_document" value="Llibre">
         </div>
         <div class="full">
-          <label>Títol *</label>
+          <label id="labelTitol">Títol *</label>
           <input type="text" id="f_titol" required>
         </div>
         <div class="full">
@@ -1004,7 +1018,7 @@
           <input type="text" id="f_volum" placeholder="Vol. 1, Tomo 2…">
         </div>
         <div>
-          <label>Autor</label>
+          <label id="labelAutor">Autor</label>
           <div style="display:flex; gap:6px;">
             <input type="text" id="f_autor" placeholder="Cognom, Nom" style="flex:1;">
             <button type="button" class="btn btn-secondary" id="btnLookupAutor" title="Verifica el cognom i nom a Wikidata" aria-label="Verifica l'autor" style="padding:0 10px;">🔎</button>
@@ -1352,6 +1366,7 @@ function renderPeriodGroup(grid, periode, books){
 let ALL_BOOKS = [];
 let editingId = null;
 let activeFilters = { area: null, ubicacio: '', format: '', idioma: '', llegit: '', favorits: false, articles: false };
+let catalogSection = localStorage.getItem('biblioteca_section') || 'llibres';
 let searchTerm = '';
 let sortBy = 'titol';
 
@@ -1369,6 +1384,24 @@ document.getElementById('btnThemeToggle').onclick = () => {
   applyTheme(actual === 'dark' ? 'light' : 'dark');
 };
 applyTheme(localStorage.getItem('biblioteca_theme') || 'light');
+
+function setCatalogSection(sec){
+  catalogSection = sec;
+  localStorage.setItem('biblioteca_section', sec);
+  document.querySelectorAll('#sectionToggle .sec-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.section === sec);
+  });
+  document.getElementById('searchInput').placeholder = sec === 'musica'
+    ? 'Cerca per àlbum, artista o paraula clau…'
+    : 'Cerca per títol, autor o paraula clau…';
+  document.getElementById('btnAdd').textContent = sec === 'musica' ? '+ Afegir disc' : '+ Afegir llibre';
+  incompleteFieldFilter = null;
+  renderFilters();
+  renderGrid();
+}
+document.querySelectorAll('#sectionToggle .sec-btn').forEach(btn => {
+  btn.addEventListener('click', () => setCatalogSection(btn.dataset.section));
+});
 
 function ensureCurrentUser(){
   renderUserSwitch();
@@ -1502,13 +1535,14 @@ function renderContinueReading(){
 }
 
 function renderHeaderStats(){
-  const catalogats = ALL_BOOKS.filter(b => !b.es_desig);
+  const esMusica = b => b.tipus_document === 'Vinil' || b.tipus_document === 'CD';
+  const catalogats = ALL_BOOKS.filter(b => !b.es_desig && (catalogSection === 'musica' ? esMusica(b) : !esMusica(b)));
   const total = catalogats.length;
   const guillem = catalogats.filter(b => (b.ubicacio||'').includes('Guillem')).length;
   const nastia = catalogats.filter(b => (b.ubicacio||'').includes('Nàstia')).length;
   const synology = catalogats.filter(b => (b.ubicacio||'').includes('Synology')).length;
   document.getElementById('stats').innerHTML = `
-    <div><b>${total}</b>llibres</div>
+    <div><b>${total}</b>${catalogSection === 'musica' ? 'discos' : 'llibres'}</div>
     <div><b>${guillem}</b>de Guillem</div>
     <div><b>${nastia}</b>de Nàstia</div>
     <div><b>${synology}</b>a synology</div>
@@ -1592,6 +1626,9 @@ let incompleteFieldFilter = null;
 
 function matchesFilters(b){
   if(b.es_desig) return false; // els desitjos nomes es veuen al seu propi panell
+  const esMusica = b.tipus_document === 'Vinil' || b.tipus_document === 'CD';
+  if(catalogSection === 'musica' && !esMusica) return false;
+  if(catalogSection === 'llibres' && esMusica) return false;
   if(incompleteFieldFilter){
     return !b[incompleteFieldFilter] || !String(b[incompleteFieldFilter]).trim();
   }
@@ -1834,7 +1871,7 @@ function buildGridCard(b){
         <button type="button" class="btn-fav ${b.favorit ? 'actiu' : ''}" aria-label="${b.favorit ? 'Treu de favorits' : 'Marca com a favorit'}" title="${b.favorit ? 'Treu de favorits' : 'Marca com a favorit'}">${b.favorit ? '★' : '☆'}</button>
       </div>
     </div>
-    <div class="titol">${b.tipus_document === 'Article' ? '<span class="doc-type-tag">Article</span> ' : ''}${escapeHtml(b.titol)}${b.volum ? ` <span class="volum-badge">${escapeHtml(b.volum)}</span>` : ''}</div>
+    <div class="titol">${b.tipus_document === 'Article' ? '<span class="doc-type-tag">Article</span> ' : (b.tipus_document === 'Vinil' || b.tipus_document === 'CD') ? `<span class="doc-type-tag">${b.tipus_document}</span> ` : ''}${escapeHtml(b.titol)}${b.volum ? ` <span class="volum-badge">${escapeHtml(b.volum)}</span>` : ''}</div>
     <div class="autor" title="${escapeHtml(b.autor || '')}">${escapeHtml(formatAuthor(b.autor))}</div>
     ${b.llegit === 'Llegint' ? `<div class="progres-track"><div class="progres-fill" style="width:${b.progres_lectura ?? 0}%"></div></div>` : ''}
     <div class="meta">
@@ -1875,7 +1912,7 @@ function buildListRow(b){
   row.innerHTML = `
     <span class="lr-bar" style="background:${color}"></span>
     <div class="lr-main">
-      <div class="lr-title">${b.tipus_document === 'Article' ? '<span class="doc-type-tag">Art.</span> ' : ''}${escapeHtml(b.titol)}${b.volum ? ` <span class="volum-badge">${escapeHtml(b.volum)}</span>` : ''}${b.any_publicacio ? ` <span class="lr-year-badge">${b.any_publicacio}</span>` : ''}</div>
+      <div class="lr-title">${b.tipus_document === 'Article' ? '<span class="doc-type-tag">Art.</span> ' : (b.tipus_document === 'Vinil' || b.tipus_document === 'CD') ? `<span class="doc-type-tag">${b.tipus_document}</span> ` : ''}${escapeHtml(b.titol)}${b.volum ? ` <span class="volum-badge">${escapeHtml(b.volum)}</span>` : ''}${b.any_publicacio ? ` <span class="lr-year-badge">${b.any_publicacio}</span>` : ''}</div>
       <div class="lr-sub">
         ${area ? `<span class="lr-area-pill" style="background:${color}22;color:${color}">${escapeHtml(area)}</span>` : ''}
         <span class="lr-meta-text">${escapeHtml(subParts.join(' · '))}</span>
@@ -1910,6 +1947,9 @@ function setTipusDocument(tipus){
   document.querySelectorAll('#tipusDocSeg .tipus-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.tipus === tipus);
   });
+  const esMusica = tipus === 'Vinil' || tipus === 'CD';
+  document.getElementById('labelTitol').textContent = esMusica ? 'Àlbum *' : 'Títol *';
+  document.getElementById('labelAutor').textContent = esMusica ? 'Artista' : 'Autor';
 }
 document.querySelectorAll('#tipusDocSeg .tipus-btn').forEach(btn => {
   btn.addEventListener('click', () => { if(!READONLY) setTipusDocument(btn.dataset.tipus); });
@@ -2008,7 +2048,7 @@ function openModal(book){
   f('f_llegit', book?.llegit);
   f('f_progres', book?.progres_lectura);
   document.getElementById('f_favorit').checked = !!book?.favorit;
-  setTipusDocument(book?.tipus_document || 'Llibre');
+  setTipusDocument(book?.tipus_document || (catalogSection === 'musica' ? 'Vinil' : 'Llibre'));
 
   const afegitInfo = document.getElementById('afegitPerInfo');
   if(book && book.afegit_per){
@@ -3305,6 +3345,7 @@ document.getElementById('btnDelete').onclick = async () => {
 document.getElementById('btnRetryLoad').onclick = () => loadBooks();
 
 setViewMode(viewMode);
+setCatalogSection(catalogSection);
 ensureCurrentUser();
 loadBooks();
 </script>
