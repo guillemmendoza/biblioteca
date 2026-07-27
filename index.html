@@ -1435,6 +1435,7 @@ function setCatalogSection(sec){
     b.style.display = (sec === 'musica') === esBtnMusica ? '' : 'none';
   });
   incompleteFieldFilter = null;
+  renderHeaderStats();
   renderFilters();
   renderGrid();
 }
@@ -1744,8 +1745,10 @@ function sortBooks(books){
 function renderGrid(){
   const grid = document.getElementById('grid');
   const filtered = sortBooks(ALL_BOOKS.filter(matchesFilters));
-  const total = ALL_BOOKS.length;
+  const esMusicaB = b => b.tipus_document === 'Vinil' || b.tipus_document === 'CD';
+  const total = ALL_BOOKS.filter(b => !b.es_desig && (catalogSection === 'musica' ? esMusicaB(b) : !esMusicaB(b))).length;
   const n = filtered.length;
+  const mot = catalogSection === 'musica' ? 'discos' : 'llibres';
 
   grid.innerHTML = '';
   document.getElementById('emptyState').style.display = n ? 'none' : 'block';
@@ -1753,13 +1756,13 @@ function renderGrid(){
   const bar = document.getElementById('resultsBar');
   if(incompleteFieldFilter){
     const labels = { area_principal: 'sense àrea', idioma: 'sense idioma', format: 'sense format', ubicacio: 'sense ubicació', autor: 'sense autor', paraules_clau: 'sense paraules clau' };
-    bar.innerHTML = `<b>${n}</b> llibres ${labels[incompleteFieldFilter] || ''} <button type="button" id="btnClearIncomplete" class="clear-filters" style="border:none; background:none; cursor:pointer; display:inline;">— treu aquest filtre ✕</button>`;
+    bar.innerHTML = `<b>${n}</b> ${mot} ${labels[incompleteFieldFilter] || ''} <button type="button" id="btnClearIncomplete" class="clear-filters" style="border:none; background:none; cursor:pointer; display:inline;">— treu aquest filtre ✕</button>`;
     const clearBtn = document.getElementById('btnClearIncomplete');
     if(clearBtn) clearBtn.onclick = () => { incompleteFieldFilter = null; renderGrid(); };
   } else if(n === total){
-    bar.innerHTML = `<b>${total}</b> llibres`;
+    bar.innerHTML = `<b>${total}</b> ${mot}`;
   } else {
-    bar.innerHTML = `<b>${n}</b> de ${total} llibres`;
+    bar.innerHTML = `<b>${n}</b> de ${total} ${mot}`;
   }
 
   if(viewMode === 'chrono'){
