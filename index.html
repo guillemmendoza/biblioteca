@@ -377,6 +377,7 @@
     text-transform: uppercase;
   }
   .stamp.guillem{ color:#8B5E3C; background: #8B5E3C1a; }
+  .stamp.nastia{ color:#1E8A5F; background: #1E8A5F1a; }
   .stamp.synology{ color:#4F6D8C; background: #4F6D8C1a; }
   .stamp.mixed{ color:#7A3B4A; background: #7A3B4A1a; }
 
@@ -724,7 +725,7 @@
   <header>
     <div class="brand">
       <h1>Biblioteca</h1>
-      <div class="sub">Catàleg personal · Guillem</div>
+      <div class="sub">Catàleg de Guillem i Nàstia</div>
     </div>
     <div class="stats" id="stats"></div>
   </header>
@@ -957,11 +958,15 @@
         </div>
         <div>
           <label>Ubicació</label>
-          <input type="text" id="f_ubicacio" list="ubicacionsList" autocomplete="off" placeholder="Guillem, Synology…">
+          <input type="text" id="f_ubicacio" list="ubicacionsList" autocomplete="off" placeholder="Guillem, Nàstia, Synology…">
           <datalist id="ubicacionsList">
             <option value="Synology">
             <option value="Guillem">
+            <option value="Nàstia">
             <option value="Guillem, Synology">
+            <option value="Nàstia, Synology">
+            <option value="Guillem, Nàstia">
+            <option value="Guillem, Nàstia, Synology">
           </datalist>
         </div>
         <div>
@@ -1291,11 +1296,13 @@ async function loadBooks(){
 
 function renderHeaderStats(){
   const total = ALL_BOOKS.length;
-  const casa = ALL_BOOKS.filter(b => (b.ubicacio||'').includes('Guillem')).length;
+  const guillem = ALL_BOOKS.filter(b => (b.ubicacio||'').includes('Guillem')).length;
+  const nastia = ALL_BOOKS.filter(b => (b.ubicacio||'').includes('Nàstia')).length;
   const synology = ALL_BOOKS.filter(b => (b.ubicacio||'').includes('Synology')).length;
   document.getElementById('stats').innerHTML = `
     <div><b>${total}</b>llibres</div>
-    <div><b>${casa}</b>a casa</div>
+    <div><b>${guillem}</b>de Guillem</div>
+    <div><b>${nastia}</b>de Nàstia</div>
     <div><b>${synology}</b>a synology</div>
   `;
 }
@@ -1417,11 +1424,14 @@ function formatAuthor(autor){
 function stampInfo(ubicacio){
   if(!ubicacio) return null;
   const hasG = ubicacio.includes('Guillem');
+  const hasN = ubicacio.includes('Nàstia');
   const hasS = ubicacio.includes('Synology');
-  if(hasG && hasS) return {label:'Casa + Synology', cls:'mixed'};
-  if(hasG) return {label:'Casa', cls:'guillem'};
-  if(hasS) return {label:'Synology', cls:'synology'};
-  return {label: ubicacio, cls:'mixed'};
+  const parts = [hasG && 'Guillem', hasN && 'Nàstia', hasS && 'Synology'].filter(Boolean);
+  if(!parts.length) return {label: ubicacio, cls:'mixed'};
+  if(parts.length > 1) return {label: parts.join(' + '), cls:'mixed'};
+  if(hasG) return {label:'Guillem', cls:'guillem'};
+  if(hasN) return {label:'Nàstia', cls:'nastia'};
+  return {label:'Synology', cls:'synology'};
 }
 
 function charRank(ch){
@@ -2031,9 +2041,9 @@ function renderStats(){
   const llegits = ALL_BOOKS.filter(b => b.llegit === 'Sí').length;
   const llegintAra = ALL_BOOKS.filter(b => b.llegit === 'Llegint').length;
   const pendents = ALL_BOOKS.filter(b => b.llegit !== 'Sí' && b.llegit !== 'Llegint').length;
-  const casa = ALL_BOOKS.filter(b => (b.ubicacio||'').includes('Guillem')).length;
+  const guillem = ALL_BOOKS.filter(b => (b.ubicacio||'').includes('Guillem')).length;
+  const nastia = ALL_BOOKS.filter(b => (b.ubicacio||'').includes('Nàstia')).length;
   const digital = ALL_BOOKS.filter(b => (b.ubicacio||'').includes('Synology')).length;
-  const ambdos = ALL_BOOKS.filter(b => (b.ubicacio||'').includes('Guillem') && (b.ubicacio||'').includes('Synology')).length;
 
   const ambPreu = ALL_BOOKS.filter(b => typeof b.preu === 'number' && !isNaN(b.preu));
   const valorTotal = ambPreu.reduce((sum, b) => sum + b.preu, 0);
@@ -2074,9 +2084,9 @@ function renderStats(){
         <div class="stats-num"><b>${llegintAra}</b><span>Llegint ara</span></div>
         <div class="stats-num"><b>${pendents}</b><span>Pendents</span></div>
         <div class="stats-num"><b>${total ? Math.round(llegits/total*100) : 0}%</b><span>% llegit</span></div>
-        <div class="stats-num"><b>${casa}</b><span>A casa</span></div>
+        <div class="stats-num"><b>${guillem}</b><span>De Guillem</span></div>
+        <div class="stats-num"><b>${nastia}</b><span>De Nàstia</span></div>
         <div class="stats-num"><b>${digital}</b><span>Synology</span></div>
-        <div class="stats-num"><b>${ambdos}</b><span>Tots dos</span></div>
         <div class="stats-num"><b>${valorFmt}</b><span>Valor col·lecció</span></div>
       </div>
       ${ambPreu.length ? `<div style="font-size:0.72rem; color:var(--text-faint); margin-top:8px; font-family:var(--sys);">Calculat a partir de ${ambPreu.length} de ${total} llibres amb preu registrat.</div>` : ''}
