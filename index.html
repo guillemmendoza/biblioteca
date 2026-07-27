@@ -1009,12 +1009,12 @@
           <label id="labelTitol">Títol *</label>
           <input type="text" id="f_titol" required>
         </div>
-        <div class="full">
+        <div class="full" id="fw_subtitol">
           <label>Subtítol</label>
           <input type="text" id="f_subtitol">
         </div>
         <div>
-          <label>Volum</label>
+          <label id="labelVolum">Volum</label>
           <input type="text" id="f_volum" placeholder="Vol. 1, Tomo 2…">
         </div>
         <div>
@@ -1026,7 +1026,7 @@
           <div id="autorLookupStatus" style="font-size:0.72rem; color:var(--text-soft); margin-top:3px; min-height:1em;"></div>
         </div>
         <div>
-          <label>Autor secundari / Editor</label>
+          <label id="labelAutorSecundari">Autor secundari / Editor</label>
           <input type="text" id="f_autor_secundari">
         </div>
         <div>
@@ -1034,10 +1034,10 @@
           <input type="number" id="f_any">
         </div>
         <div>
-          <label>Editorial</label>
+          <label id="labelEditorial">Editorial</label>
           <input type="text" id="f_editorial">
         </div>
-        <div>
+        <div id="fw_area">
           <label>Àrea principal</label>
           <select id="f_area">
             <option value="">— sense àrea —</option>
@@ -1053,7 +1053,7 @@
           </select>
         </div>
         <div>
-          <label>Tipologia / Especialitat</label>
+          <label id="labelTipologia">Tipologia / Especialitat</label>
           <input type="text" id="f_tipologia" list="tipologiesList" autocomplete="off">
           <datalist id="tipologiesList">
             <option value="Història Antiga">
@@ -1097,7 +1097,7 @@
             <option value="Economia">
           </datalist>
         </div>
-        <div>
+        <div id="fw_periode">
           <label>Període històric</label>
           <select id="f_periode">
             <option value="">— sense classificar —</option>
@@ -1108,7 +1108,7 @@
             <option>Edat Contemporània</option>
           </select>
         </div>
-        <div>
+        <div id="fw_format">
           <label>Format</label>
           <input type="text" id="f_format" list="formatsList" autocomplete="off" placeholder="Físic, PDF, EPUB…">
           <datalist id="formatsList">
@@ -1147,7 +1147,7 @@
             <option value="Grec">
           </datalist>
         </div>
-        <div>
+        <div id="fw_llegit">
           <label>Llegit</label>
           <select id="f_llegit">
             <option value="">—</option>
@@ -1179,7 +1179,7 @@
           <input type="hidden" id="f_valoracio">
         </div>
         <div>
-          <label>ISBN/ISSN</label>
+          <label id="labelIsbn">ISBN/ISSN</label>
           <input type="text" id="f_isbn">
         </div>
         <div>
@@ -1202,11 +1202,11 @@
           <label>Paraules clau</label>
           <input type="text" id="f_paraules_clau" placeholder="separades per ; ">
         </div>
-        <div class="full">
+        <div class="full" id="fw_projecte">
           <label>Projecte / Recerca associada</label>
           <input type="text" id="f_projecte">
         </div>
-        <div class="full">
+        <div class="full" id="fw_resum">
           <label>Resum</label>
           <textarea id="f_resum"></textarea>
           <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px;">
@@ -1948,8 +1948,21 @@ function setTipusDocument(tipus){
     b.classList.toggle('active', b.dataset.tipus === tipus);
   });
   const esMusica = tipus === 'Vinil' || tipus === 'CD';
+
+  // Reetiquetats
   document.getElementById('labelTitol').textContent = esMusica ? 'Àlbum *' : 'Títol *';
   document.getElementById('labelAutor').textContent = esMusica ? 'Artista' : 'Autor';
+  document.getElementById('labelAutorSecundari').textContent = esMusica ? 'Artista convidat / Productor' : 'Autor secundari / Editor';
+  document.getElementById('labelEditorial').textContent = esMusica ? 'Segell discogràfic' : 'Editorial';
+  document.getElementById('labelTipologia').textContent = esMusica ? 'Gènere musical' : 'Tipologia / Especialitat';
+  document.getElementById('labelIsbn').textContent = esMusica ? 'Codi de barres (UPC/EAN)' : 'ISBN/ISSN';
+  document.getElementById('labelVolum').textContent = esMusica ? 'Número de referència' : 'Volum';
+
+  // Camps que no tenen sentit per música, amagats
+  ['fw_subtitol', 'fw_area', 'fw_periode', 'fw_format', 'fw_llegit', 'fw_projecte', 'fw_resum'].forEach(id => {
+    document.getElementById(id).style.display = esMusica ? 'none' : '';
+  });
+  if(esMusica) document.getElementById('progresWrap').style.display = 'none';
 }
 document.querySelectorAll('#tipusDocSeg .tipus-btn').forEach(btn => {
   btn.addEventListener('click', () => { if(!READONLY) setTipusDocument(btn.dataset.tipus); });
