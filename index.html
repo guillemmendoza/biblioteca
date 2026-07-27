@@ -411,6 +411,9 @@
     border-radius: var(--r-md); padding: 10px 14px; margin-bottom:8px;
   }
   .incomplete-row:last-child{ margin-bottom:0; }
+  .incomplete-clickable{ cursor:pointer; transition: background 0.15s, transform 0.08s; }
+  .incomplete-clickable:hover{ background: var(--border-soft); }
+  .incomplete-clickable:active{ transform: scale(0.99); }
   .incomplete-count{
     width:30px; height:30px; border-radius:50%; background:#C0435A; color:#fff;
     display:flex; align-items:center; justify-content:center; font-weight:700; font-size:0.82rem;
@@ -1024,6 +1027,7 @@ function renderFilters(){
     chip.className = 'chip' + (activeFilters.area === a ? ' active' : '');
     chip.innerHTML = `<span class="dot" style="background:${AREA_COLORS[a]}"></span>${a}`;
     chip.onclick = () => {
+      incompleteFieldFilter = null;
       activeFilters.area = activeFilters.area === a ? null : a;
       renderFilters(); renderGrid();
     };
@@ -1042,6 +1046,7 @@ function renderFilters(){
   clear.textContent = 'Neteja filtres';
   clear.onclick = () => {
     activeFilters = { area:null, ubicacio:'', format:'', idioma:'', llegit:'' };
+    incompleteFieldFilter = null;
     document.getElementById('searchInput').value='';
     document.getElementById('searchClear').classList.remove('show');
     searchTerm='';
@@ -1054,11 +1059,16 @@ function makeSelect(key, placeholder, options){
   const sel = document.createElement('select');
   sel.className = 'chip';
   sel.innerHTML = `<option value="">${placeholder}</option>` + options.map(o=>`<option value="${o}" ${activeFilters[key]===o?'selected':''}>${o}</option>`).join('');
-  sel.onchange = () => { activeFilters[key] = sel.value; renderGrid(); };
+  sel.onchange = () => { incompleteFieldFilter = null; activeFilters[key] = sel.value; renderGrid(); };
   return sel;
 }
 
+let incompleteFieldFilter = null;
+
 function matchesFilters(b){
+  if(incompleteFieldFilter){
+    return !b[incompleteFieldFilter] || !String(b[incompleteFieldFilter]).trim();
+  }
   if(activeFilters.area){
     const first = (b.area_principal||'').split(',')[0].trim();
     if(first !== activeFilters.area) return false;
@@ -1125,7 +1135,12 @@ function renderGrid(){
   document.getElementById('emptyState').style.display = n ? 'none' : 'block';
 
   const bar = document.getElementById('resultsBar');
-  if(n === total){
+  if(incompleteFieldFilter){
+    const labels = { area_principal: 'sense àrea', idioma: 'sense idioma', format: 'sense format', ubicacio: 'sense ubicació', autor: 'sense autor' };
+    bar.innerHTML = `<b>${n}</b> llibres ${labels[incompleteFieldFilter] || ''} <button type="button" id="btnClearIncomplete" class="clear-filters" style="border:none; background:none; cursor:pointer; display:inline;">— treu aquest filtre ✕</button>`;
+    const clearBtn = document.getElementById('btnClearIncomplete');
+    if(clearBtn) clearBtn.onclick = () => { incompleteFieldFilter = null; renderGrid(); };
+  } else if(n === total){
     bar.innerHTML = `<b>${total}</b> llibres`;
   } else {
     bar.innerHTML = `<b>${n}</b> de ${total} llibres`;
@@ -1365,7 +1380,7 @@ function renderIncomplete(){
     if(!buits.length) return '';
     const mostra = buits.slice(0, 6).map(b => escapeHtml(b.titol)).join(', ');
     const resta = buits.length > 6 ? ` i ${buits.length - 6} més` : '';
-    return `<div class="incomplete-row">
+    return `<div class="incomplete-row incomplete-clickable" data-field="${c.key}" role="button" tabindex="0">
       <span class="incomplete-count">${buits.length}</span>
       <div>
         <div class="incomplete-label">${c.label}</div>
@@ -1376,6 +1391,24 @@ function renderIncomplete(){
 
   document.getElementById('incompleteList').innerHTML = html ||
     '<div style="color:var(--c-historia); font-weight:600; font-size:0.85rem;">✓ Totes les fitxes tenen les dades bàsiques completes.</div>';
+
+  document.querySelectorAll('.incomplete-clickable').forEach(el => {
+    const open = () => showIncompleteField(el.dataset.field);
+    el.addEventListener('click', open);
+    el.addEventListener('keydown', (e) => { if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); open(); } });
+  });
+}
+
+function showIncompleteField(field){
+  incompleteFieldFilter = field;
+  activeFilters = { area:null, ubicacio:'', format:'', idioma:'', llegit:'' };
+  searchTerm = '';
+  document.getElementById('searchInput').value = '';
+  document.getElementById('searchClear').classList.remove('show');
+  document.getElementById('advancedPanel').style.display = 'none';
+  renderFilters();
+  renderGrid();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function duplicateKey(b){
@@ -2149,6 +2182,7 @@ searchInputEl.addEventListener('input', (e) => {
   searchClearEl.classList.toggle('show', val.length > 0);
   clearTimeout(searchDebounce);
   searchDebounce = setTimeout(() => {
+    incompleteFieldFilter = null;
     searchTerm = val;
     renderGrid();
   }, 150);
