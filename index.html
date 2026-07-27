@@ -1330,18 +1330,7 @@ function renderFilters(){
   const el = document.getElementById('filters');
   el.innerHTML = '';
 
-  areas.forEach(a => {
-    const chip = document.createElement('div');
-    chip.className = 'chip' + (activeFilters.area === a ? ' active' : '');
-    chip.innerHTML = `<span class="dot" style="background:${AREA_COLORS[a]}"></span>${a}`;
-    chip.onclick = () => {
-      incompleteFieldFilter = null;
-      activeFilters.area = activeFilters.area === a ? null : a;
-      renderFilters(); renderGrid();
-    };
-    el.appendChild(chip);
-  });
-
+  el.appendChild(makeSelect('area', 'Àrea', areas));
   el.appendChild(makeSelect('ubicacio', 'Ubicació', ubicacions));
   el.appendChild(makeSelect('format', 'Format', formats));
   el.appendChild(makeSelect('idioma', 'Idioma', idiomes));
