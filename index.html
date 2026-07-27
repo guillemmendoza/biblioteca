@@ -419,6 +419,16 @@
   .incomplete-label{ font-weight:600; font-size:0.85rem; margin-bottom:2px; }
   .incomplete-sample{ font-size:0.76rem; color:var(--text-soft); }
 
+  .dup-item{
+    display:flex; justify-content:space-between; align-items:center;
+    background: var(--bg-card); border-radius: var(--r-sm);
+    padding: 8px 12px; margin-bottom:6px; cursor:pointer;
+    font-size:0.8rem; transition: background 0.15s;
+  }
+  .dup-item:last-child{ margin-bottom:0; }
+  .dup-item:hover{ background: var(--border-soft); }
+  .dup-open{ color: var(--accent); font-weight:600; font-size:0.74rem; flex-shrink:0; margin-left:10px; }
+
   .stats-block{
     background: var(--accent-soft); border-radius: var(--r-md);
     padding: 14px 16px 16px;
@@ -662,6 +672,10 @@
     <div class="advanced-section">
       <h3>Dades incompletes</h3>
       <div id="incompleteList"></div>
+    </div>
+    <div class="advanced-section">
+      <h3>Possibles duplicats d'edició</h3>
+      <div id="duplicatesList"></div>
     </div>
     <div class="advanced-section">
       <h3>Excel</h3>
@@ -1332,7 +1346,7 @@ document.getElementById('btnAdvanced').onclick = () => {
   const panel = document.getElementById('advancedPanel');
   const visible = panel.style.display !== 'none';
   panel.style.display = visible ? 'none' : 'block';
-  if(!visible) renderIncomplete();
+  if(!visible){ renderIncomplete(); renderDuplicates(); }
 };
 document.getElementById('btnAdvancedClose').onclick = () => {
   document.getElementById('advancedPanel').style.display = 'none';
@@ -1362,6 +1376,57 @@ function renderIncomplete(){
 
   document.getElementById('incompleteList').innerHTML = html ||
     '<div style="color:var(--c-historia); font-weight:600; font-size:0.85rem;">✓ Totes les fitxes tenen les dades bàsiques completes.</div>';
+}
+
+function duplicateKey(b){
+  const titolNorm = normalizeHeader(b.titol || '').replace(/[^a-z0-9 ]/g, '').trim();
+  const primerAutor = (b.autor || '').split(';')[0];
+  const cognomNorm = normalizeHeader(primerAutor.split(',')[0] || primerAutor).replace(/[^a-z0-9 ]/g, '').trim();
+  if(!titolNorm) return null;
+  return `${titolNorm}|||${cognomNorm}`;
+}
+
+function renderDuplicates(){
+  const grups = {};
+  ALL_BOOKS.forEach(b => {
+    const key = duplicateKey(b);
+    if(!key) return;
+    (grups[key] = grups[key] || []).push(b);
+  });
+
+  const grupsAmbDuplicats = Object.values(grups).filter(g => g.length > 1);
+
+  if(!grupsAmbDuplicats.length){
+    document.getElementById('duplicatesList').innerHTML =
+      '<div style="color:var(--c-historia); font-weight:600; font-size:0.85rem;">✓ No s\'ha detectat cap possible duplicat.</div>';
+    return;
+  }
+
+  const html = grupsAmbDuplicats.map(grup => {
+    const items = grup.map(b => {
+      const detalls = [b.format, b.ubicacio, b.any_publicacio, b.editorial].filter(Boolean).join(' · ');
+      return `<div class="dup-item" data-id="${b.id}">
+        <span>${escapeHtml(detalls || 'Sense més detalls')}</span>
+        <span class="dup-open">Obre ›</span>
+      </div>`;
+    }).join('');
+    return `<div class="incomplete-row" style="flex-direction:column; align-items:stretch;">
+      <div class="incomplete-label" style="margin-bottom:8px;">${escapeHtml(grup[0].titol)} <span style="font-weight:500; color:var(--text-soft);">— ${escapeHtml(formatAuthor(grup[0].autor))}</span></div>
+      ${items}
+    </div>`;
+  }).join('');
+
+  document.getElementById('duplicatesList').innerHTML = html;
+
+  document.querySelectorAll('.dup-item').forEach(el => {
+    el.addEventListener('click', () => {
+      const book = ALL_BOOKS.find(b => b.id === el.dataset.id);
+      if(book){
+        document.getElementById('advancedPanel').style.display = 'none';
+        openModal(book);
+      }
+    });
+  });
 }
 
 document.getElementById('btnFilters').onclick = () => {
