@@ -239,12 +239,13 @@
     width:28px; height:28px; border-radius:50%; border:none;
     background: rgba(43,38,32,0.07); color: var(--text-faint);
     display:flex; align-items:center; justify-content:center;
-    font-size:0.74rem; font-weight:700; cursor:pointer;
+    font-size:0.68rem; font-weight:700; cursor:pointer;
     transition: background 0.15s, color 0.15s, transform 0.08s;
     flex-shrink:0;
   }
   .lr-llegit:active{ transform: scale(0.88); }
-  .lr-llegit.llegit{ background: var(--c-historia); color:#fff; }
+  .lr-llegit.llegit{ background: var(--c-historia); color:#fff; font-size:0.74rem; }
+  .lr-llegit.llegint{ background: var(--accent); color:#fff; }
   .lr-chevron{ color: var(--text-faint); font-size:1.2rem; font-weight:300; line-height:1; }
 
   /* Segmented control */
@@ -359,6 +360,13 @@
   }
   .btn-llegit:active{ transform: scale(0.94); }
   .btn-llegit.llegit{ background: var(--c-historia); color: #fff; }
+  .btn-llegit.llegint{ background: var(--accent); color: #fff; }
+
+  .progres-track{
+    height: 4px; border-radius: var(--r-pill); background: rgba(43,38,32,0.08);
+    margin-bottom: 10px; overflow:hidden;
+  }
+  .progres-fill{ height:100%; background: var(--accent); border-radius: var(--r-pill); transition: width 0.3s ease; }
 
   .results-bar{
     font-family: var(--sys);
@@ -391,6 +399,26 @@
     display:grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
     gap: 14px;
   }
+
+  .advanced-section{ margin-bottom: 20px; }
+  .advanced-section:last-child{ margin-bottom: 0; }
+  .advanced-section h3{
+    font-family: var(--sys); font-size:0.72rem; text-transform:uppercase; font-weight:700;
+    letter-spacing:0.04em; color:var(--text-soft); margin: 0 0 10px;
+  }
+  .incomplete-row{
+    display:flex; align-items:center; gap:12px; background:var(--accent-soft);
+    border-radius: var(--r-md); padding: 10px 14px; margin-bottom:8px;
+  }
+  .incomplete-row:last-child{ margin-bottom:0; }
+  .incomplete-count{
+    width:30px; height:30px; border-radius:50%; background:#C0435A; color:#fff;
+    display:flex; align-items:center; justify-content:center; font-weight:700; font-size:0.82rem;
+    flex-shrink:0;
+  }
+  .incomplete-label{ font-weight:600; font-size:0.85rem; margin-bottom:2px; }
+  .incomplete-sample{ font-size:0.76rem; color:var(--text-soft); }
+
   .stats-block{
     background: var(--accent-soft); border-radius: var(--r-md);
     padding: 14px 16px 16px;
@@ -613,9 +641,8 @@
     <button class="btn-outline" id="btnFilters">Filtres<span class="filter-badge" id="filterBadge" style="display:none;"></span></button>
     <button class="btn-outline" id="btnShare">Comparteix</button>
     <button class="btn-outline" id="btnStats">Estadístiques</button>
-    <button class="btn-outline" id="btnImport">↑ Importar Excel</button>
+    <button class="btn-outline" id="btnAdvanced">⚙ Opcions avançades</button>
     <input type="file" id="importFile" accept=".xlsx,.xls" style="display:none;">
-    <button class="btn-outline" id="btnExport">↓ Excel</button>
     <button class="btn-add" id="btnAdd">+ Afegir llibre</button>
   </div>
 
@@ -625,6 +652,24 @@
       <button class="stats-close" id="btnStatsClose" type="button" aria-label="Tanca estadístiques">✕</button>
     </div>
     <div class="stats-grid" id="statsGrid"></div>
+  </div>
+
+  <div class="stats-panel" id="advancedPanel" style="display:none;">
+    <div class="stats-panel-header">
+      <h2>Opcions avançades</h2>
+      <button class="stats-close" id="btnAdvancedClose" type="button" aria-label="Tanca opcions avançades">✕</button>
+    </div>
+    <div class="advanced-section">
+      <h3>Dades incompletes</h3>
+      <div id="incompleteList"></div>
+    </div>
+    <div class="advanced-section">
+      <h3>Excel</h3>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button class="btn-outline" id="btnImport">↑ Importar Excel</button>
+        <button class="btn-outline" id="btnExport">↓ Exportar Excel</button>
+      </div>
+    </div>
   </div>
 
   <div class="filters-panel" id="filtersPanel" style="display:none;">
@@ -727,9 +772,14 @@
           <label>Llegit</label>
           <select id="f_llegit">
             <option value="">—</option>
-            <option value="Sí">Sí</option>
             <option value="No">No</option>
+            <option value="Llegint">Llegint ara</option>
+            <option value="Sí">Sí</option>
           </select>
+        </div>
+        <div id="progresWrap" style="display:none;">
+          <label>Progrés (%)</label>
+          <input type="number" min="0" max="100" step="5" id="f_progres" placeholder="Ex: 40">
         </div>
         <div>
           <label>ISBN/ISSN</label>
@@ -855,8 +905,7 @@ if(READONLY){
   document.getElementById('readonlyBanner').style.display = 'flex';
   document.getElementById('btnAdd').style.display = 'none';
   document.getElementById('btnShare').style.display = 'none';
-  document.getElementById('btnExport').style.display = 'none';
-  document.getElementById('btnImport').style.display = 'none';
+  document.getElementById('btnAdvanced').style.display = 'none';
 }
 
 function areaColor(area){
@@ -970,7 +1019,7 @@ function renderFilters(){
   el.appendChild(makeSelect('ubicacio', 'Ubicació', ubicacions));
   el.appendChild(makeSelect('format', 'Format', formats));
   el.appendChild(makeSelect('idioma', 'Idioma', idiomes));
-  el.appendChild(makeSelect('llegit', 'Llegit', ['Sí','No']));
+  el.appendChild(makeSelect('llegit', 'Llegit', ['Sí','Llegint','No']));
 
   updateFilterBadge();
 
@@ -1074,15 +1123,38 @@ function renderGrid(){
   });
 }
 
-function attachLlegitHandler(btn, b, llegit){
+function nextLlegitState(current){
+  if(current === 'Sí') return null;      // Sí -> No
+  if(current === 'Llegint') return 'Sí'; // Llegint -> Sí
+  return 'Llegint';                       // No -> Llegint
+}
+
+function attachLlegitHandler(btn, b){
   btn.addEventListener('click', async (e) => {
     e.stopPropagation();
+    const actual = b.llegit || null;
+    const nouEstat = nextLlegitState(actual);
+
+    let progres = b.progres_lectura ?? null;
+    if(nouEstat === 'Llegint'){
+      const resposta = window.prompt('A quin percentatge vas? (0-100)', progres != null ? String(progres) : '10');
+      if(resposta === null) return; // cancel·lat, no canviem res
+      const n = parseInt(resposta);
+      if(isNaN(n) || n < 0 || n > 100){ toast('Posa un número entre 0 i 100', 'error'); return; }
+      progres = n;
+    } else if(nouEstat !== 'Llegint'){
+      progres = null;
+    }
+
     btn.disabled = true;
-    const nouEstat = llegit ? null : 'Sí';
-    const { error } = await sb.from('llibres').update({ llegit: nouEstat, updated_at: new Date().toISOString() }).eq('id', b.id);
+    const { error } = await sb.from('llibres')
+      .update({ llegit: nouEstat, progres_lectura: progres, updated_at: new Date().toISOString() })
+      .eq('id', b.id);
     if(error){ toast('Error actualitzant', 'error'); btn.disabled = false; return; }
     b.llegit = nouEstat;
-    toast(nouEstat ? '✓ Marcat com a llegit' : 'Marcat com a no llegit');
+    b.progres_lectura = progres;
+    const missatges = { 'Sí': '✓ Marcat com a llegit', 'Llegint': `📖 Llegint (${progres}%)` };
+    toast(missatges[nouEstat] || 'Marcat com a no llegit');
     renderGrid();
   });
 }
@@ -1104,9 +1176,12 @@ function buildGridCard(b){
   card.setAttribute('tabindex', '0');
   card.setAttribute('aria-label', `${b.titol}, de ${formatAuthor(b.autor)}`);
   const stamp = stampInfo(b.ubicacio);
-  const llegit = b.llegit === 'Sí';
   const color = areaColor(b.area_principal);
   const area = b.area_principal ? b.area_principal.split(',')[0].trim() : null;
+
+  const llegitLabel = { 'Sí': '✓ Llegit', 'Llegint': `📖 ${b.progres_lectura ?? 0}%` }[b.llegit] || 'Llegit?';
+  const llegitCls = { 'Sí': 'llegit', 'Llegint': 'llegint' }[b.llegit] || '';
+
   card.innerHTML = `
     <div class="c-top">
       ${area ? `<span class="lr-area-pill" style="background:${color}22;color:${color}">${escapeHtml(area)}</span>` : '<span></span>'}
@@ -1114,13 +1189,14 @@ function buildGridCard(b){
     </div>
     <div class="titol">${escapeHtml(b.titol)}${b.volum ? ` <span class="volum-badge">${escapeHtml(b.volum)}</span>` : ''}</div>
     <div class="autor" title="${escapeHtml(b.autor || '')}">${escapeHtml(formatAuthor(b.autor))}</div>
+    ${b.llegit === 'Llegint' ? `<div class="progres-track"><div class="progres-fill" style="width:${b.progres_lectura ?? 0}%"></div></div>` : ''}
     <div class="meta">
       <span class="c-format">${b.format ? escapeHtml(b.format.split(',')[0].trim()) : ''}</span>
-      ${!READONLY ? `<button type="button" class="btn-llegit ${llegit ? 'llegit' : ''}" aria-label="${llegit ? 'Marca com a no llegit' : 'Marca com a llegit'}" title="${llegit ? 'Marca com a no llegit' : 'Marca com a llegit'}">${llegit ? '✓ Llegit' : 'Llegit?'}</button>` : (llegit ? '<span class="tag">Llegit</span>' : '')}
+      ${!READONLY ? `<button type="button" class="btn-llegit ${llegitCls}" aria-label="Canvia l'estat de lectura" title="Canvia l'estat de lectura">${llegitLabel}</button>` : (b.llegit && b.llegit !== 'No' ? `<span class="tag">${llegitLabel}</span>` : '')}
     </div>
   `;
   const llegitBtn = card.querySelector('.btn-llegit');
-  if(llegitBtn) attachLlegitHandler(llegitBtn, b, llegit);
+  if(llegitBtn) attachLlegitHandler(llegitBtn, b);
   attachCardOpen(card, b, '.btn-llegit');
   return card;
 }
@@ -1131,7 +1207,6 @@ function buildListRow(b){
   row.setAttribute('role', 'button');
   row.setAttribute('tabindex', '0');
   row.setAttribute('aria-label', `${b.titol}, de ${formatAuthor(b.autor)}`);
-  const llegit = b.llegit === 'Sí';
   const stamp = stampInfo(b.ubicacio);
   const color = areaColor(b.area_principal);
   const area = b.area_principal ? b.area_principal.split(',')[0].trim() : null;
@@ -1139,6 +1214,10 @@ function buildListRow(b){
   const subParts = [formatAuthor(b.autor)];
   if(b.format) subParts.push(b.format.split(',')[0].trim());
   if(stamp) subParts.push(stamp.label);
+  if(b.llegit === 'Llegint') subParts.push(`Llegint (${b.progres_lectura ?? 0}%)`);
+
+  const llegitCls = { 'Sí': 'llegit', 'Llegint': 'llegint' }[b.llegit] || '';
+  const llegitContent = b.llegit === 'Llegint' ? (b.progres_lectura ?? 0) : (b.llegit === 'Sí' ? '✓' : '');
 
   row.innerHTML = `
     <span class="lr-bar" style="background:${color}"></span>
@@ -1150,12 +1229,12 @@ function buildListRow(b){
       </div>
     </div>
     <div class="lr-trailing">
-      ${!READONLY ? `<button type="button" class="lr-llegit ${llegit ? 'llegit' : ''}" aria-label="${llegit ? 'Marca com a no llegit' : 'Marca com a llegit'}" title="${llegit ? 'Marca com a no llegit' : 'Marca com a llegit'}">✓</button>` : (llegit ? '<span class="lr-llegit llegit" aria-hidden="true">✓</span>' : '')}
+      ${!READONLY ? `<button type="button" class="lr-llegit ${llegitCls}" aria-label="Canvia l'estat de lectura" title="Canvia l'estat de lectura">${llegitContent}</button>` : (llegitContent ? `<span class="lr-llegit ${llegitCls}" aria-hidden="true">${llegitContent}</span>` : '')}
       <span class="lr-chevron">›</span>
     </div>
   `;
   const llegitBtn = row.querySelector('.lr-llegit:not([aria-hidden])');
-  if(llegitBtn && !READONLY) attachLlegitHandler(llegitBtn, b, llegit);
+  if(llegitBtn && !READONLY) attachLlegitHandler(llegitBtn, b);
   attachCardOpen(row, b, '.lr-llegit');
   return row;
 }
@@ -1163,6 +1242,12 @@ function buildListRow(b){
 function escapeHtml(s){
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
+
+function toggleProgresWrap(){
+  const mostra = document.getElementById('f_llegit').value === 'Llegint';
+  document.getElementById('progresWrap').style.display = mostra ? 'block' : 'none';
+}
+document.getElementById('f_llegit').addEventListener('change', toggleProgresWrap);
 
 function openModal(book){
   editingId = book ? book.id : null;
@@ -1188,6 +1273,8 @@ function openModal(book){
   f('f_ubicacio', book?.ubicacio);
   f('f_idioma', book?.idioma);
   f('f_llegit', book?.llegit);
+  f('f_progres', book?.progres_lectura);
+  toggleProgresWrap();
   f('f_isbn', book?.isbn);
   f('f_preu', book?.preu);
   f('f_data_adquisicio', book?.data_adquisicio);
@@ -1207,6 +1294,7 @@ function closeModal(){
   document.getElementById('f_isbn_lookup').value = '';
   document.getElementById('isbnLookupStatus').textContent = '';
   document.getElementById('autorLookupStatus').textContent = '';
+  document.getElementById('progresWrap').style.display = 'none';
   closeScanner();
 }
 
@@ -1239,6 +1327,42 @@ document.getElementById('btnStats').onclick = () => {
 document.getElementById('btnStatsClose').onclick = () => {
   document.getElementById('statsPanel').style.display = 'none';
 };
+
+document.getElementById('btnAdvanced').onclick = () => {
+  const panel = document.getElementById('advancedPanel');
+  const visible = panel.style.display !== 'none';
+  panel.style.display = visible ? 'none' : 'block';
+  if(!visible) renderIncomplete();
+};
+document.getElementById('btnAdvancedClose').onclick = () => {
+  document.getElementById('advancedPanel').style.display = 'none';
+};
+
+function renderIncomplete(){
+  const camps = [
+    { key: 'area_principal', label: 'Sense àrea' },
+    { key: 'idioma', label: 'Sense idioma' },
+    { key: 'format', label: 'Sense format' },
+    { key: 'ubicacio', label: 'Sense ubicació' },
+    { key: 'autor', label: 'Sense autor' },
+  ];
+  const html = camps.map(c => {
+    const buits = ALL_BOOKS.filter(b => !b[c.key] || !String(b[c.key]).trim());
+    if(!buits.length) return '';
+    const mostra = buits.slice(0, 6).map(b => escapeHtml(b.titol)).join(', ');
+    const resta = buits.length > 6 ? ` i ${buits.length - 6} més` : '';
+    return `<div class="incomplete-row">
+      <span class="incomplete-count">${buits.length}</span>
+      <div>
+        <div class="incomplete-label">${c.label}</div>
+        <div class="incomplete-sample">${mostra}${resta}</div>
+      </div>
+    </div>`;
+  }).filter(Boolean).join('');
+
+  document.getElementById('incompleteList').innerHTML = html ||
+    '<div style="color:var(--c-historia); font-weight:600; font-size:0.85rem;">✓ Totes les fitxes tenen les dades bàsiques completes.</div>';
+}
 
 document.getElementById('btnFilters').onclick = () => {
   const panel = document.getElementById('filtersPanel');
@@ -1274,6 +1398,8 @@ function renderStats(){
   const grid = document.getElementById('statsGrid');
   const total = ALL_BOOKS.length;
   const llegits = ALL_BOOKS.filter(b => b.llegit === 'Sí').length;
+  const llegintAra = ALL_BOOKS.filter(b => b.llegit === 'Llegint').length;
+  const pendents = ALL_BOOKS.filter(b => b.llegit !== 'Sí' && b.llegit !== 'Llegint').length;
   const casa = ALL_BOOKS.filter(b => (b.ubicacio||'').includes('Guillem')).length;
   const digital = ALL_BOOKS.filter(b => (b.ubicacio||'').includes('Synology')).length;
   const ambdos = ALL_BOOKS.filter(b => (b.ubicacio||'').includes('Guillem') && (b.ubicacio||'').includes('Synology')).length;
@@ -1314,7 +1440,8 @@ function renderStats(){
       <div class="stats-numbers">
         <div class="stats-num"><b>${total}</b><span>Total</span></div>
         <div class="stats-num"><b>${llegits}</b><span>Llegits</span></div>
-        <div class="stats-num"><b>${total-llegits}</b><span>Pendents</span></div>
+        <div class="stats-num"><b>${llegintAra}</b><span>Llegint ara</span></div>
+        <div class="stats-num"><b>${pendents}</b><span>Pendents</span></div>
         <div class="stats-num"><b>${total ? Math.round(llegits/total*100) : 0}%</b><span>% llegit</span></div>
         <div class="stats-num"><b>${casa}</b><span>A casa</span></div>
         <div class="stats-num"><b>${digital}</b><span>Synology</span></div>
@@ -2013,6 +2140,9 @@ document.getElementById('bookForm').addEventListener('submit', async (e) => {
     ubicacio: document.getElementById('f_ubicacio').value.trim() || null,
     idioma: document.getElementById('f_idioma').value.trim() || null,
     llegit: document.getElementById('f_llegit').value || null,
+    progres_lectura: (document.getElementById('f_llegit').value === 'Llegint' && document.getElementById('f_progres').value)
+      ? Math.max(0, Math.min(100, parseInt(document.getElementById('f_progres').value)))
+      : null,
     isbn: document.getElementById('f_isbn').value.trim() || null,
     preu: preuVal ? parseFloat(preuVal) : null,
     data_adquisicio: document.getElementById('f_data_adquisicio').value.trim() || null,
