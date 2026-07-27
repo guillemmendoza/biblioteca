@@ -281,6 +281,18 @@
   .view-toggle button.active{ background: var(--bg-card); color: var(--text); box-shadow: 0 1px 3px rgba(43,38,32,0.15); }
   .view-toggle svg{ width:16px; height:16px; }
 
+  .segmented{
+    display:flex; background: var(--accent-soft); border-radius: var(--r-pill);
+    padding: 3px; box-sizing:border-box;
+  }
+  .segmented button{
+    background: transparent; border:none; padding: 7px 14px; cursor:pointer;
+    font-family: var(--sys); font-weight:600; font-size:0.82rem;
+    color: var(--text-soft); border-radius: var(--r-pill);
+    transition: background 0.15s, color 0.15s; white-space:nowrap;
+  }
+  .segmented button.active{ background: var(--bg-card); color: var(--text); box-shadow: 0 1px 3px rgba(43,38,32,0.15); }
+
   .btn-outline{
     background: var(--accent-soft); color: var(--text);
     border: none; height:40px; padding: 0 15px; border-radius: var(--r-pill);
@@ -407,6 +419,13 @@
     font-size: 0.8rem; margin-left: 10px; padding: 4px 6px;
   }
   .star-clear:hover{ color: var(--text-soft); }
+
+  .doc-type-tag{
+    font-family: var(--sys); font-weight:700; font-size:0.62rem;
+    color: var(--c-periodisme); background: rgba(92,102,112,0.14);
+    padding: 2px 6px; border-radius: 5px; vertical-align: middle;
+    text-transform: uppercase; letter-spacing:0.02em;
+  }
 
   .rating-badge{
     font-family: var(--sys); font-weight:700; font-size:0.68rem;
@@ -740,6 +759,7 @@
       </button>
     </div>
     <button class="btn-outline" id="btnFilters">Filtres<span class="filter-badge" id="filterBadge" style="display:none;"></span></button>
+    <button class="btn-outline" id="btnRandom">🎲 Sorprèn-me</button>
     <button class="btn-outline" id="btnShare">Comparteix</button>
     <button class="btn-outline" id="btnStats">Estadístiques</button>
     <button class="btn-outline" id="btnAdvanced">⚙ Opcions avançades</button>
@@ -817,6 +837,13 @@
         <div id="isbnLookupStatus" style="font-size:0.76rem; color:var(--text-soft); margin-top:4px; min-height:1em;"></div>
       </div>
       <div class="form-grid">
+        <div class="full">
+          <div class="segmented" id="tipusDocSeg" style="width:fit-content; margin-bottom:4px;">
+            <button type="button" class="tipus-btn active" data-tipus="Llibre">📕 Llibre</button>
+            <button type="button" class="tipus-btn" data-tipus="Article">📄 Article</button>
+          </div>
+          <input type="hidden" id="f_tipus_document" value="Llibre">
+        </div>
         <div class="full">
           <label>Títol *</label>
           <input type="text" id="f_titol" required>
@@ -1032,12 +1059,13 @@
         <div id="relatedBooksList"></div>
       </div>
       <div class="modal-actions">
-        <div>
+        <div style="display:flex; align-items:center; gap:12px;">
           <button type="button" class="btn btn-danger" id="btnDelete" style="display:none;">Eliminar</button>
+          <span id="autoSaveStatus" style="font-size:0.76rem; color:var(--text-soft);"></span>
         </div>
         <div style="display:flex; gap:8px;">
           <button type="button" class="btn btn-secondary" id="btnCancel">Cancel·la</button>
-          <button type="submit" class="btn btn-primary">Desa</button>
+          <button type="submit" class="btn btn-primary" id="btnSubmitBook">Desa</button>
         </div>
       </div>
     </form>
@@ -1172,7 +1200,7 @@ function renderPeriodGroup(grid, periode, books){
 
 let ALL_BOOKS = [];
 let editingId = null;
-let activeFilters = { area: null, ubicacio: '', format: '', idioma: '', llegit: '', favorits: false };
+let activeFilters = { area: null, ubicacio: '', format: '', idioma: '', llegit: '', favorits: false, articles: false };
 let searchTerm = '';
 let sortBy = 'titol';
 
@@ -1325,13 +1353,23 @@ function renderFilters(){
   };
   el.appendChild(favChip);
 
+  const artChip = document.createElement('div');
+  artChip.className = 'chip' + (activeFilters.articles ? ' active' : '');
+  artChip.innerHTML = `📄 Només articles`;
+  artChip.onclick = () => {
+    incompleteFieldFilter = null;
+    activeFilters.articles = !activeFilters.articles;
+    renderFilters(); renderGrid();
+  };
+  el.appendChild(artChip);
+
   updateFilterBadge();
 
   const clear = document.createElement('div');
   clear.className = 'clear-filters';
   clear.textContent = 'Neteja filtres';
   clear.onclick = () => {
-    activeFilters = { area:null, ubicacio:'', format:'', idioma:'', llegit:'', favorits:false };
+    activeFilters = { area:null, ubicacio:'', format:'', idioma:'', llegit:'', favorits:false, articles:false };
     incompleteFieldFilter = null;
     document.getElementById('searchInput').value='';
     document.getElementById('searchClear').classList.remove('show');
@@ -1364,6 +1402,7 @@ function matchesFilters(b){
   if(activeFilters.idioma && !(b.idioma||'').includes(activeFilters.idioma)) return false;
   if(activeFilters.llegit && b.llegit !== activeFilters.llegit) return false;
   if(activeFilters.favorits && !b.favorit) return false;
+  if(activeFilters.articles && b.tipus_document !== 'Article') return false;
   if(searchTerm){
     const hay = [b.titol,b.autor,b.paraules_clau,b.subtitol].filter(Boolean).join(' ').toLowerCase();
     if(!hay.includes(searchTerm.toLowerCase())) return false;
@@ -1540,7 +1579,7 @@ function buildGridCard(b){
         <button type="button" class="btn-fav ${b.favorit ? 'actiu' : ''}" aria-label="${b.favorit ? 'Treu de favorits' : 'Marca com a favorit'}" title="${b.favorit ? 'Treu de favorits' : 'Marca com a favorit'}">${b.favorit ? '★' : '☆'}</button>
       </div>
     </div>
-    <div class="titol">${escapeHtml(b.titol)}${b.volum ? ` <span class="volum-badge">${escapeHtml(b.volum)}</span>` : ''}</div>
+    <div class="titol">${b.tipus_document === 'Article' ? '<span class="doc-type-tag">Article</span> ' : ''}${escapeHtml(b.titol)}${b.volum ? ` <span class="volum-badge">${escapeHtml(b.volum)}</span>` : ''}</div>
     <div class="autor" title="${escapeHtml(b.autor || '')}">${escapeHtml(formatAuthor(b.autor))}</div>
     ${b.llegit === 'Llegint' ? `<div class="progres-track"><div class="progres-fill" style="width:${b.progres_lectura ?? 0}%"></div></div>` : ''}
     <div class="meta">
@@ -1581,7 +1620,7 @@ function buildListRow(b){
   row.innerHTML = `
     <span class="lr-bar" style="background:${color}"></span>
     <div class="lr-main">
-      <div class="lr-title">${escapeHtml(b.titol)}${b.volum ? ` <span class="volum-badge">${escapeHtml(b.volum)}</span>` : ''}${b.any_publicacio ? ` <span class="lr-year-badge">${b.any_publicacio}</span>` : ''}</div>
+      <div class="lr-title">${b.tipus_document === 'Article' ? '<span class="doc-type-tag">Art.</span> ' : ''}${escapeHtml(b.titol)}${b.volum ? ` <span class="volum-badge">${escapeHtml(b.volum)}</span>` : ''}${b.any_publicacio ? ` <span class="lr-year-badge">${b.any_publicacio}</span>` : ''}</div>
       <div class="lr-sub">
         ${area ? `<span class="lr-area-pill" style="background:${color}22;color:${color}">${escapeHtml(area)}</span>` : ''}
         <span class="lr-meta-text">${escapeHtml(subParts.join(' · '))}</span>
@@ -1610,6 +1649,16 @@ function toggleProgresWrap(){
   document.getElementById('progresWrap').style.display = mostra ? 'block' : 'none';
 }
 document.getElementById('f_llegit').addEventListener('change', toggleProgresWrap);
+
+function setTipusDocument(tipus){
+  document.getElementById('f_tipus_document').value = tipus;
+  document.querySelectorAll('#tipusDocSeg .tipus-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.tipus === tipus);
+  });
+}
+document.querySelectorAll('#tipusDocSeg .tipus-btn').forEach(btn => {
+  btn.addEventListener('click', () => { if(!READONLY) setTipusDocument(btn.dataset.tipus); });
+});
 
 function setStarRating(valor){
   const rating = document.getElementById('starRating');
@@ -1679,7 +1728,10 @@ function openModal(book){
   const isReadonlyView = READONLY;
   document.getElementById('modalTitle').textContent = isReadonlyView ? 'Detall del llibre' : (book ? 'Editar llibre' : 'Afegir llibre');
   document.getElementById('btnDelete').style.display = (book && !isReadonlyView) ? 'inline-block' : 'none';
-  document.querySelector('#bookForm button[type=submit]').style.display = isReadonlyView ? 'none' : 'inline-block';
+  const submitBtnEl = document.getElementById('btnSubmitBook');
+  submitBtnEl.style.display = isReadonlyView ? 'none' : 'inline-block';
+  submitBtnEl.textContent = book ? 'Fet ✓' : 'Desa';
+  setAutoSaveStatus('');
   document.getElementById('btnCancel').textContent = isReadonlyView ? 'Tanca' : 'Cancel·la';
   document.getElementById('isbnLookup').style.display = isReadonlyView ? 'none' : 'block';
   document.querySelectorAll('#bookForm input, #bookForm select, #bookForm textarea').forEach(el => el.disabled = isReadonlyView);
@@ -1701,6 +1753,7 @@ function openModal(book){
   f('f_llegit', book?.llegit);
   f('f_progres', book?.progres_lectura);
   document.getElementById('f_favorit').checked = !!book?.favorit;
+  setTipusDocument(book?.tipus_document || 'Llibre');
   setStarRating(book?.valoracio || 0);
   toggleProgresWrap();
   f('f_isbn', book?.isbn);
@@ -1718,6 +1771,7 @@ function openModal(book){
 }
 
 function closeModal(){
+  clearTimeout(autoSaveTimer);
   document.getElementById('overlay').classList.remove('open');
   editingId = null;
   document.getElementById('bookForm').reset();
@@ -1725,6 +1779,7 @@ function closeModal(){
   document.getElementById('isbnLookupStatus').textContent = '';
   document.getElementById('autorLookupStatus').textContent = '';
   document.getElementById('progresWrap').style.display = 'none';
+  setAutoSaveStatus('');
   closeScanner();
 }
 
@@ -1738,6 +1793,14 @@ document.getElementById('viewGrid').onclick = () => setViewMode('grid');
 document.getElementById('viewList').onclick = () => setViewMode('list');
 document.getElementById('viewChrono').onclick = () => setViewMode('chrono');
 document.getElementById('sortSelect').onchange = (e) => { sortBy = e.target.value; renderGrid(); };
+
+document.getElementById('btnRandom').onclick = () => {
+  const candidats = ALL_BOOKS.filter(matchesFilters);
+  if(!candidats.length){ toast('No hi ha cap llibre amb aquests filtres', 'error'); return; }
+  const triat = candidats[Math.floor(Math.random() * candidats.length)];
+  toast('🎲 Què tal aquest?');
+  openModal(triat);
+};
 
 document.getElementById('btnShare').onclick = async () => {
   const url = location.origin + location.pathname + '?share=1';
@@ -1865,7 +1928,7 @@ function renderIncomplete(){
 
 function showIncompleteField(field){
   incompleteFieldFilter = field;
-  activeFilters = { area:null, ubicacio:'', format:'', idioma:'', llegit:'' };
+  activeFilters = { area:null, ubicacio:'', format:'', idioma:'', llegit:'', favorits:false, articles:false };
   searchTerm = '';
   document.getElementById('searchInput').value = '';
   document.getElementById('searchClear').classList.remove('show');
@@ -1945,6 +2008,7 @@ function updateFilterBadge(){
   if(activeFilters.idioma) n++;
   if(activeFilters.llegit) n++;
   if(activeFilters.favorits) n++;
+  if(activeFilters.articles) n++;
   const badge = document.getElementById('filterBadge');
   badge.textContent = n;
   badge.style.display = n > 0 ? 'inline-flex' : 'none';
@@ -2675,26 +2739,26 @@ document.addEventListener('keydown', (e) => {
   if(document.getElementById('overlay').classList.contains('open')){ closeModal(); return; }
 });
 
-document.getElementById('bookForm').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  if(READONLY) return;
-
-  const submitBtn = document.querySelector('#bookForm button[type=submit]');
-  if(submitBtn.disabled) return;
-
+function validateForm(){
   const anyVal = document.getElementById('f_any').value;
   const preuVal = document.getElementById('f_preu').value;
   const currentYear = new Date().getFullYear();
   if(anyVal && (parseInt(anyVal) < 1400 || parseInt(anyVal) > currentYear + 1)){
-    toast(`L'any de publicació sembla incorrecte (entre 1400 i ${currentYear + 1})`, 'error');
-    return;
+    return `L'any de publicació sembla incorrecte (entre 1400 i ${currentYear + 1})`;
   }
   if(preuVal && parseFloat(preuVal) < 0){
-    toast('El preu no pot ser negatiu', 'error');
-    return;
+    return 'El preu no pot ser negatiu';
   }
+  if(!document.getElementById('f_titol').value.trim()){
+    return 'Cal un títol';
+  }
+  return null;
+}
 
-  const payload = {
+function buildPayload(){
+  const anyVal = document.getElementById('f_any').value;
+  const preuVal = document.getElementById('f_preu').value;
+  return {
     titol: document.getElementById('f_titol').value.trim(),
     subtitol: document.getElementById('f_subtitol').value.trim() || null,
     volum: document.getElementById('f_volum').value.trim() || null,
@@ -2713,6 +2777,7 @@ document.getElementById('bookForm').addEventListener('submit', async (e) => {
       ? Math.max(0, Math.min(100, parseInt(document.getElementById('f_progres').value)))
       : null,
     favorit: document.getElementById('f_favorit').checked,
+    tipus_document: document.getElementById('f_tipus_document').value || 'Llibre',
     valoracio: document.getElementById('f_valoracio').value ? parseInt(document.getElementById('f_valoracio').value) : null,
     isbn: document.getElementById('f_isbn').value.trim() || null,
     preu: preuVal ? parseFloat(preuVal) : null,
@@ -2724,19 +2789,75 @@ document.getElementById('bookForm').addEventListener('submit', async (e) => {
     comentaris: document.getElementById('f_comentaris').value.trim() || null,
     updated_at: new Date().toISOString(),
   };
+}
 
-  if(!payload.titol){ toast('Cal un títol', 'error'); document.getElementById('f_titol').focus(); return; }
+function setAutoSaveStatus(text, isError){
+  const el = document.getElementById('autoSaveStatus');
+  if(!el) return;
+  el.textContent = text;
+  el.style.color = isError ? '#C0435A' : 'var(--text-soft)';
+}
 
-  if(!editingId){
-    const titolNorm = payload.titol.toLowerCase().trim();
-    const dupTitol = ALL_BOOKS.find(b => b.titol?.toLowerCase().trim() === titolNorm);
-    const dupIsbn = payload.isbn ? ALL_BOOKS.find(b => b.isbn && b.isbn.replace(/[^0-9Xx]/g,'') === payload.isbn.replace(/[^0-9Xx]/g,'')) : null;
-    if(dupTitol || dupIsbn){
-      const msg = dupIsbn
-        ? `Ja existeix un llibre amb aquest ISBN: "${dupIsbn.titol}". Vols afegir-lo igualment?`
-        : `Ja existeix un llibre amb un títol molt similar: "${dupTitol.titol}". Vols afegir-lo igualment?`;
-      if(!confirm(msg)) return;
-    }
+let autoSaveTimer = null;
+async function autoSaveNow(){
+  if(READONLY || !editingId) return;
+  const err = validateForm();
+  if(err){ setAutoSaveStatus(err, true); return; }
+
+  setAutoSaveStatus('Desant…');
+  const payload = buildPayload();
+  try{
+    const { error } = await sb.from('llibres').update(payload).eq('id', editingId);
+    if(error) throw error;
+    const idx = ALL_BOOKS.findIndex(b => b.id === editingId);
+    if(idx !== -1) ALL_BOOKS[idx] = { ...ALL_BOOKS[idx], ...payload };
+    setAutoSaveStatus('Tot desat ✓');
+  }catch(err){
+    console.error(err);
+    setAutoSaveStatus('Error en desar — comprova la connexió', true);
+  }
+}
+
+function scheduleAutoSave(){
+  if(READONLY || !editingId) return;
+  setAutoSaveStatus('Escrivint…');
+  clearTimeout(autoSaveTimer);
+  autoSaveTimer = setTimeout(autoSaveNow, 900);
+}
+
+const bookFormEl = document.getElementById('bookForm');
+bookFormEl.addEventListener('input', (e) => { if(e.target.closest('.isbn-lookup, #f_isbn_lookup')) return; scheduleAutoSave(); });
+bookFormEl.addEventListener('change', (e) => { if(e.target.closest('.isbn-lookup, #f_isbn_lookup')) return; scheduleAutoSave(); });
+
+document.getElementById('bookForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if(READONLY) return;
+
+  const submitBtn = document.querySelector('#bookForm button[type=submit]');
+  if(submitBtn.disabled) return;
+
+  // Editant un llibre existent: les dades ja es desen soles. Aquest botó només tanca.
+  if(editingId){
+    clearTimeout(autoSaveTimer);
+    await autoSaveNow();
+    closeModal();
+    renderGrid();
+    return;
+  }
+
+  const err = validateForm();
+  if(err){ toast(err, 'error'); return; }
+
+  const payload = buildPayload();
+
+  const titolNorm = payload.titol.toLowerCase().trim();
+  const dupTitol = ALL_BOOKS.find(b => b.titol?.toLowerCase().trim() === titolNorm);
+  const dupIsbn = payload.isbn ? ALL_BOOKS.find(b => b.isbn && b.isbn.replace(/[^0-9Xx]/g,'') === payload.isbn.replace(/[^0-9Xx]/g,'')) : null;
+  if(dupTitol || dupIsbn){
+    const msg = dupIsbn
+      ? `Ja existeix un llibre amb aquest ISBN: "${dupIsbn.titol}". Vols afegir-lo igualment?`
+      : `Ja existeix un llibre amb un títol molt similar: "${dupTitol.titol}". Vols afegir-lo igualment?`;
+    if(!confirm(msg)) return;
   }
 
   submitBtn.disabled = true;
@@ -2744,14 +2865,9 @@ document.getElementById('bookForm').addEventListener('submit', async (e) => {
   submitBtn.textContent = 'Desant…';
 
   try{
-    let error;
-    if(editingId){
-      ({ error } = await sb.from('llibres').update(payload).eq('id', editingId));
-    } else {
-      ({ error } = await sb.from('llibres').insert(payload));
-    }
+    const { error } = await sb.from('llibres').insert(payload);
     if(error) throw error;
-    toast(editingId ? 'Llibre actualitzat' : 'Llibre afegit');
+    toast('Llibre afegit');
     closeModal();
     loadBooks();
   }catch(err){
