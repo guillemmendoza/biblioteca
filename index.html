@@ -1096,6 +1096,27 @@
             <option value="Cultura Popular">
             <option value="Economia">
           </datalist>
+          <datalist id="generesMusicList">
+            <option value="Rock">
+            <option value="Pop">
+            <option value="Indie">
+            <option value="Folk">
+            <option value="Jazz">
+            <option value="Blues">
+            <option value="Soul">
+            <option value="Funk">
+            <option value="Hip Hop">
+            <option value="Electrònica">
+            <option value="Clàssica">
+            <option value="Cantautor">
+            <option value="Rumba catalana">
+            <option value="Flamenc">
+            <option value="Punk">
+            <option value="Metal">
+            <option value="Reggae">
+            <option value="Cançó d'autor">
+            <option value="Banda sonora">
+          </datalist>
         </div>
         <div id="fw_periode">
           <label>Període històric</label>
@@ -1182,12 +1203,26 @@
           <label id="labelIsbn">ISBN/ISSN</label>
           <input type="text" id="f_isbn">
         </div>
+        <div id="fw_estat" style="display:none;">
+          <label>Estat de conservació</label>
+          <select id="f_estat_conservacio">
+            <option value="">— sense especificar —</option>
+            <option value="Nou / Precintat">Nou / Precintat</option>
+            <option value="Mint (M)">Mint (M) — perfecte</option>
+            <option value="Near Mint (NM)">Near Mint (NM) — quasi perfecte</option>
+            <option value="Very Good Plus (VG+)">Very Good Plus (VG+) — molt bo</option>
+            <option value="Very Good (VG)">Very Good (VG) — bo, marques lleus</option>
+            <option value="Good (G)">Good (G) — desgast visible</option>
+            <option value="Poor (P)">Poor (P) — molt deteriorat</option>
+          </select>
+        </div>
         <div>
           <label>Preu</label>
           <div style="display:flex; gap:6px;">
             <input type="number" step="0.01" id="f_preu" style="flex:1;">
-            <button type="button" class="btn btn-secondary" id="btnPreuIberlibro" title="Cerca preu a Iberlibro" style="padding:0 9px; font-size:0.72rem;">Iberlibro</button>
-            <button type="button" class="btn btn-secondary" id="btnPreuTodocol" title="Cerca preu a Todocolección" style="padding:0 9px; font-size:0.72rem;">Todocol.</button>
+            <button type="button" class="btn btn-secondary btn-preu-llibre" id="btnPreuIberlibro" title="Cerca preu a Iberlibro" style="padding:0 9px; font-size:0.72rem;">Iberlibro</button>
+            <button type="button" class="btn btn-secondary btn-preu-llibre" id="btnPreuTodocol" title="Cerca preu a Todocolección" style="padding:0 9px; font-size:0.72rem;">Todocol.</button>
+            <button type="button" class="btn btn-secondary btn-preu-musica" id="btnPreuDiscogs" title="Cerca preu al mercat de Discogs" style="padding:0 9px; font-size:0.72rem; display:none;">Discogs</button>
           </div>
         </div>
         <div>
@@ -1877,7 +1912,7 @@ function buildGridCard(b){
     <div class="autor" title="${escapeHtml(b.autor || '')}">${escapeHtml(formatAuthor(b.autor))}</div>
     ${b.llegit === 'Llegint' ? `<div class="progres-track"><div class="progres-fill" style="width:${b.progres_lectura ?? 0}%"></div></div>` : ''}
     <div class="meta">
-      <span class="c-format">${b.format ? escapeHtml(b.format.split(',')[0].trim()) : ''}</span>
+      <span class="c-format">${b.estat_conservacio ? escapeHtml(b.estat_conservacio.split(' ')[0]) : (b.format ? escapeHtml(b.format.split(',')[0].trim()) : '')}</span>
       <div style="display:flex; align-items:center; gap:6px;">
         ${b.valoracio ? `<span class="rating-badge">★${b.valoracio}</span>` : ''}
         ${!READONLY ? `<button type="button" class="btn-llegit ${llegitCls}" aria-label="Canvia l'estat de lectura" title="Canvia l'estat de lectura">${llegitLabel}</button>` : (b.llegit && b.llegit !== 'No' ? `<span class="tag">${llegitLabel}</span>` : '')}
@@ -1957,6 +1992,7 @@ function setTipusDocument(tipus){
   document.getElementById('labelAutorSecundari').textContent = esMusica ? 'Artista convidat / Productor' : 'Autor secundari / Editor';
   document.getElementById('labelEditorial').textContent = esMusica ? 'Segell discogràfic' : 'Editorial';
   document.getElementById('labelTipologia').textContent = esMusica ? 'Gènere musical' : 'Tipologia / Especialitat';
+  document.getElementById('f_tipologia').setAttribute('list', esMusica ? 'generesMusicList' : 'tipologiesList');
   document.getElementById('labelIsbn').textContent = esMusica ? 'Codi de barres (UPC/EAN)' : 'ISBN/ISSN';
   document.getElementById('labelIsbnLookup').textContent = esMusica ? 'Omplir dades a partir del codi de barres' : "Omplir dades a partir de l'ISBN";
   document.getElementById('f_isbn_lookup').placeholder = esMusica ? '5099750442227' : '9788408166610';
@@ -1966,6 +2002,10 @@ function setTipusDocument(tipus){
   ['fw_subtitol', 'fw_area', 'fw_periode', 'fw_format', 'fw_llegit', 'fw_projecte', 'fw_resum'].forEach(id => {
     document.getElementById(id).style.display = esMusica ? 'none' : '';
   });
+  document.querySelectorAll('.btn-preu-llibre').forEach(b => b.style.display = esMusica ? 'none' : '');
+  document.querySelectorAll('.btn-preu-musica').forEach(b => b.style.display = esMusica ? '' : 'none');
+  const fwEstat = document.getElementById('fw_estat');
+  if(fwEstat) fwEstat.style.display = esMusica ? '' : 'none';
   if(esMusica) document.getElementById('progresWrap').style.display = 'none';
 }
 document.querySelectorAll('#tipusDocSeg .tipus-btn').forEach(btn => {
@@ -2068,6 +2108,7 @@ function openModal(book){
   f('f_llegit', book?.llegit);
   f('f_progres', book?.progres_lectura);
   document.getElementById('f_favorit').checked = !!book?.favorit;
+  document.getElementById('f_estat_conservacio').value = book?.estat_conservacio || '';
   setTipusDocument(book?.tipus_document || (catalogSection === 'musica' ? 'Vinil' : 'Llibre'));
 
   const afegitInfo = document.getElementById('afegitPerInfo');
@@ -2826,6 +2867,12 @@ document.getElementById('btnPreuTodocol').onclick = () => {
   window.open(`https://www.todocoleccion.net/s/${encodeURIComponent(q)}`, '_blank');
 };
 
+document.getElementById('btnPreuDiscogs').onclick = () => {
+  const q = buildPriceSearchQuery();
+  if(!q){ toast('Omple almenys l\'àlbum primer', 'error'); return; }
+  window.open(`https://www.discogs.com/search/?q=${encodeURIComponent(q)}&type=release`, '_blank');
+};
+
 async function tryGoogleBooksDescription(){
   const isbn = document.getElementById('f_isbn').value.trim().replace(/[^0-9Xx]/g, '');
   const titol = document.getElementById('f_titol').value.trim();
@@ -3038,21 +3085,39 @@ async function tryOpenLibrarySearch(candidates){
 
 async function tryMusicBrainz(codi){
   try{
-    const res = await fetch(`https://musicbrainz.org/ws/2/release/?query=barcode:${codi}&fmt=json&inc=labels+artist-credits`);
-    const json = await res.json();
-    const rel = json.releases && json.releases.sort((a,b) => (b.score||0)-(a.score||0))[0];
-    if(!rel) return null;
+    // Pas 1: cerca per codi de barres per trobar l'edició concreta
+    const cercaRes = await fetch(`https://musicbrainz.org/ws/2/release/?query=barcode:${codi}&fmt=json`);
+    const cercaJson = await cercaRes.json();
+    const millor = cercaJson.releases && cercaJson.releases.sort((a,b) => (b.score||0)-(a.score||0))[0];
+    if(!millor) return null;
+
+    // Pas 2: demana la fitxa completa d'aquella edició, amb generes i grup de l'edició
+    const detallRes = await fetch(`https://musicbrainz.org/ws/2/release/${millor.id}?inc=labels+artist-credits+genres+tags+release-groups&fmt=json`);
+    const rel = await detallRes.json();
+
     const artistes = (rel['artist-credit'] || [])
       .map(ac => toCognomNom(ac.name || (ac.artist && ac.artist.name) || ''))
       .filter(Boolean).join('; ');
     const segells = (rel['label-info'] || []).map(li => li.label && li.label.name).filter(Boolean);
     const catNums = (rel['label-info'] || []).map(li => li['catalog-number']).filter(Boolean);
+
+    // Genere: prova primer els generes editorials, despres les etiquetes de la comunitat,
+    // i si l'edicio concreta no en te, mira les del grup de l'edicio (l'album en general).
+    let generes = (rel.genres || []).map(g => g.name);
+    if(!generes.length) generes = (rel.tags || []).sort((a,b) => (b.count||0)-(a.count||0)).map(t => t.name);
+    if(!generes.length && rel['release-group']){
+      const grupGeneres = (rel['release-group'].genres || []).map(g => g.name);
+      generes = grupGeneres.length ? grupGeneres : (rel['release-group'].tags || []).sort((a,b)=>(b.count||0)-(a.count||0)).map(t => t.name);
+    }
+    const genere = [...new Set(generes)].slice(0, 3).map(g => g.charAt(0).toUpperCase() + g.slice(1)).join(', ');
+
     return {
       titol: rel.title || '',
       autor: artistes,
       any: (rel.date || '').slice(0, 4),
       editorial: [...new Set(segells)].join('; '),
       volum: [...new Set(catNums)].join('; '),
+      genere,
     };
   }catch(e){ console.error(e); return null; }
 }
@@ -3070,6 +3135,7 @@ async function lookupCodiMusica(codi){
       if(hit.any) document.getElementById('f_any').value = hit.any;
       if(hit.editorial) document.getElementById('f_editorial').value = hit.editorial;
       if(hit.volum) document.getElementById('f_volum').value = hit.volum;
+      if(hit.genere) document.getElementById('f_tipologia').value = hit.genere;
       document.getElementById('f_isbn').value = raw;
       statusEl.textContent = 'Dades trobades a MusicBrainz ✓';
     } else {
@@ -3283,6 +3349,7 @@ function buildPayload(){
       ? Math.max(0, Math.min(100, parseInt(document.getElementById('f_progres').value)))
       : null,
     favorit: document.getElementById('f_favorit').checked,
+    estat_conservacio: document.getElementById('f_estat_conservacio').value || null,
     tipus_document: document.getElementById('f_tipus_document').value || 'Llibre',
     valoracio: document.getElementById('f_valoracio').value ? parseInt(document.getElementById('f_valoracio').value) : null,
     isbn: document.getElementById('f_isbn').value.trim() || null,
