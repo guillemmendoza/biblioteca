@@ -1430,6 +1430,10 @@ function setCatalogSection(sec){
     ? 'Cerca per àlbum, artista o paraula clau…'
     : 'Cerca per títol, autor o paraula clau…';
   document.getElementById('btnAdd').textContent = sec === 'musica' ? '+ Afegir disc' : '+ Afegir llibre';
+  document.querySelectorAll('#tipusDocSeg .tipus-btn').forEach(b => {
+    const esBtnMusica = b.dataset.tipus === 'Vinil' || b.dataset.tipus === 'CD';
+    b.style.display = (sec === 'musica') === esBtnMusica ? '' : 'none';
+  });
   incompleteFieldFilter = null;
   renderFilters();
   renderGrid();
