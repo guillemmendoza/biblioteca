@@ -871,6 +871,8 @@
       <input type="text" id="searchInput" placeholder="Cerca per títol, autor o paraula clau…">
       <button type="button" class="search-clear" id="searchClear" aria-label="Neteja la cerca">✕</button>
     </div>
+    <input type="file" id="importFile" accept=".xlsx,.xls" style="display:none;">
+    <button class="btn-add" id="btnAdd">+ Afegir llibre</button>
     <select class="chip" id="sortSelect">
       <option value="titol">A → Z</option>
       <option value="autor">Autor</option>
@@ -894,36 +896,44 @@
     </div>
     <button class="btn-outline" id="btnFilters">Filtres<span class="filter-badge" id="filterBadge" style="display:none;"></span></button>
     <button class="btn-outline" id="btnRandom">🎲 Sorprèn-me</button>
-    <button class="btn-outline" id="btnWishlist">💭 Vull llegir</button>
-    <button class="btn-outline" id="btnDiscover">🔍 Descobreix</button>
-    <button class="btn-outline" id="btnShare">Comparteix</button>
-    <button class="btn-outline" id="btnStats">Estadístiques</button>
     <button class="btn-outline" id="btnAdvanced">⚙ Opcions avançades</button>
-    <input type="file" id="importFile" accept=".xlsx,.xls" style="display:none;">
-    <button class="btn-add" id="btnAdd">+ Afegir llibre</button>
-  </div>
-
-  <div class="stats-panel" id="statsPanel" style="display:none;">
-    <div class="stats-panel-header">
-      <h2>Estadístiques</h2>
-      <button class="stats-close" id="btnStatsClose" type="button" aria-label="Tanca estadístiques">✕</button>
-    </div>
-    <div class="stats-grid" id="statsGrid"></div>
   </div>
 
   <div class="stats-panel" id="advancedPanel" style="display:none;">
     <div class="stats-panel-header">
-      <h2>Opcions avançades</h2>
+      <h2>⚙ Opcions avançades</h2>
       <button class="stats-close" id="btnAdvancedClose" type="button" aria-label="Tanca opcions avançades">✕</button>
     </div>
     <div class="advanced-tabs" id="advancedTabs">
-      <button type="button" class="adv-tab active" data-tab="incomplete">Dades incompletes</button>
+      <button type="button" class="adv-tab active" data-tab="stats">Estadístiques</button>
+      <button type="button" class="adv-tab" data-tab="wishlist">💭 Vull llegir</button>
+      <button type="button" class="adv-tab" data-tab="discover">🔍 Descobreix</button>
+      <button type="button" class="adv-tab" data-tab="share">Comparteix</button>
+      <button type="button" class="adv-tab" data-tab="incomplete">Dades incompletes</button>
       <button type="button" class="adv-tab" data-tab="duplicates">Duplicats d'edició</button>
       <button type="button" class="adv-tab" data-tab="biblio">Bibliografia de treball</button>
       <button type="button" class="adv-tab" data-tab="excel">Excel</button>
     </div>
 
-    <div class="advanced-section adv-panel" data-panel="incomplete">
+    <div class="advanced-section adv-panel" data-panel="stats">
+      <div class="stats-grid" id="statsGrid"></div>
+    </div>
+    <div class="advanced-section adv-panel" data-panel="wishlist" style="display:none;">
+      <div class="wishlist-form">
+        <input type="text" id="wl_titol" placeholder="Títol del llibre…">
+        <input type="text" id="wl_autor" placeholder="Autor (opcional)…">
+        <button type="button" class="btn btn-primary" id="btnWishlistAdd">+ Afegeix</button>
+      </div>
+      <div id="wishlistList"></div>
+    </div>
+    <div class="advanced-section adv-panel" data-panel="discover" style="display:none;">
+      <div id="discoverBody"></div>
+    </div>
+    <div class="advanced-section adv-panel" data-panel="share" style="display:none;">
+      <p style="font-size:0.85rem; color:var(--text-soft); margin:0 0 14px;">Genera un enllaç de només lectura per compartir el catàleg sencer, sense que qui el rebi el pugui editar.</p>
+      <button class="btn btn-primary" id="btnShareCopy">🔗 Copia l'enllaç de només lectura</button>
+    </div>
+    <div class="advanced-section adv-panel" data-panel="incomplete" style="display:none;">
       <div id="incompleteList"></div>
     </div>
     <div class="advanced-section adv-panel" data-panel="duplicates" style="display:none;">
@@ -938,27 +948,6 @@
         <button class="btn-outline" id="btnExport">↓ Exportar Excel</button>
       </div>
     </div>
-  </div>
-
-  <div class="stats-panel" id="wishlistPanel" style="display:none;">
-    <div class="stats-panel-header">
-      <h2>💭 Vull llegir</h2>
-      <button class="stats-close" id="btnWishlistClose" type="button" aria-label="Tanca la llista de desitjos">✕</button>
-    </div>
-    <div class="wishlist-form">
-      <input type="text" id="wl_titol" placeholder="Títol del llibre…">
-      <input type="text" id="wl_autor" placeholder="Autor (opcional)…">
-      <button type="button" class="btn btn-primary" id="btnWishlistAdd">+ Afegeix</button>
-    </div>
-    <div id="wishlistList"></div>
-  </div>
-
-  <div class="stats-panel" id="discoverPanel" style="display:none;">
-    <div class="stats-panel-header">
-      <h2>🔍 Descobreix</h2>
-      <button class="stats-close" id="btnDiscoverClose" type="button" aria-label="Tanca descobreix">✕</button>
-    </div>
-    <div id="discoverBody"></div>
   </div>
 
   <div class="filters-panel" id="filtersPanel" style="display:none;">
@@ -1417,7 +1406,6 @@ function setViewMode(mode){
 if(READONLY){
   document.getElementById('readonlyBanner').style.display = 'flex';
   document.getElementById('btnAdd').style.display = 'none';
-  document.getElementById('btnShare').style.display = 'none';
   document.getElementById('btnAdvanced').style.display = 'none';
 }
 
@@ -2082,7 +2070,7 @@ document.getElementById('btnRandom').onclick = () => {
   openModal(triat);
 };
 
-document.getElementById('btnShare').onclick = async () => {
+document.getElementById('btnShareCopy').onclick = async () => {
   const url = location.origin + location.pathname + '?share=1';
   try{
     await navigator.clipboard.writeText(url);
@@ -2092,17 +2080,11 @@ document.getElementById('btnShare').onclick = async () => {
   }
 };
 
-document.getElementById('btnStats').onclick = () => {
-  const panel = document.getElementById('statsPanel');
-  const visible = panel.style.display !== 'none';
-  panel.style.display = visible ? 'none' : 'block';
-  if(!visible) renderStats();
-};
-document.getElementById('btnStatsClose').onclick = () => {
-  document.getElementById('statsPanel').style.display = 'none';
-};
-
 const ADVANCED_RENDERERS = {
+  stats: renderStats,
+  wishlist: renderWishlist,
+  discover: renderDiscover,
+  share: () => {},
   incomplete: renderIncomplete,
   duplicates: renderDuplicates,
   biblio: renderBiblio,
@@ -2126,31 +2108,11 @@ document.getElementById('btnAdvanced').onclick = () => {
   panel.style.display = visible ? 'none' : 'block';
   if(!visible){
     const actiu = document.querySelector('.adv-tab.active');
-    switchAdvancedTab(actiu ? actiu.dataset.tab : 'incomplete');
+    switchAdvancedTab(actiu ? actiu.dataset.tab : 'stats');
   }
 };
 document.getElementById('btnAdvancedClose').onclick = () => {
   document.getElementById('advancedPanel').style.display = 'none';
-};
-
-document.getElementById('btnWishlist').onclick = () => {
-  const panel = document.getElementById('wishlistPanel');
-  const visible = panel.style.display !== 'none';
-  panel.style.display = visible ? 'none' : 'block';
-  if(!visible) renderWishlist();
-};
-document.getElementById('btnWishlistClose').onclick = () => {
-  document.getElementById('wishlistPanel').style.display = 'none';
-};
-
-document.getElementById('btnDiscover').onclick = () => {
-  const panel = document.getElementById('discoverPanel');
-  const visible = panel.style.display !== 'none';
-  panel.style.display = visible ? 'none' : 'block';
-  if(!visible) renderDiscover();
-};
-document.getElementById('btnDiscoverClose').onclick = () => {
-  document.getElementById('discoverPanel').style.display = 'none';
 };
 
 function renderDiscover(){
@@ -2193,7 +2155,7 @@ function renderDiscover(){
     item.className = 'dup-item';
     item.innerHTML = `<span>${escapeHtml(r.book.titol)} <span style="color:var(--text-soft); font-weight:500;">— ${escapeHtml(formatAuthor(r.book.autor))}</span></span><span class="dup-open">${r.comunes} en comú ›</span>`;
     item.addEventListener('click', () => {
-      document.getElementById('discoverPanel').style.display = 'none';
+      document.getElementById('advancedPanel').style.display = 'none';
       openModal(r.book);
     });
     list.appendChild(item);
@@ -2231,7 +2193,7 @@ function renderWishlist(){
       const { error } = await sb.from('llibres').update({ es_desig: false, updated_at: new Date().toISOString() }).eq('id', id);
       if(error){ toast('Error actualitzant', 'error'); gotBtn.disabled = false; return; }
       book.es_desig = false;
-      document.getElementById('wishlistPanel').style.display = 'none';
+      document.getElementById('advancedPanel').style.display = 'none';
       toast('Ara completa la fitxa amb les dades que et falten');
       openModal(book);
     };
