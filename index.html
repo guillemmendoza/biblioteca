@@ -44,6 +44,30 @@
     --r-pill: 999px;
   }
 
+  [data-theme="dark"]{
+    --bg: #1C1917;
+    --bg-card: #26221F;
+    --bg-elevated: #2C2724;
+    --text: #EDE6DC;
+    --text-soft: #A69C8F;
+    --text-faint: #7C7268;
+    --border: #3A3430;
+    --border-soft: #332E2A;
+    --accent: #C39568;
+    --accent-soft: #362F28;
+
+    --c-historia: #3FB884;
+    --c-politica: #C96B7E;
+    --c-literatura: #6B93AC;
+    --c-musica: #E0B255;
+    --c-periodisme: #8A97A0;
+    --c-psicologia: #C89478;
+    --c-filosofia: #9884AC;
+    --c-esports: #7CA0C4;
+    --c-cultura: #D0AA5E;
+    --c-default: #C39568;
+  }
+
   *{ box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html,body{ margin:0; padding:0; }
   body{
@@ -299,6 +323,68 @@
   .btn-outline:hover{ background: var(--border-soft); }
   .btn-outline:active{ transform: scale(0.975); }
   .btn-outline.active-outline{ background: var(--text); color: var(--bg); }
+
+  .wishlist-form{
+    display:flex; gap:8px; flex-wrap:wrap; margin-bottom:18px;
+  }
+  .wishlist-form input{
+    flex:1; min-width:140px; border:none; border-radius:var(--r-sm);
+    padding:9px 12px; font-family:var(--sys); font-size:0.88rem;
+    background:var(--accent-soft); color:var(--text);
+  }
+  .wishlist-form input:focus{ outline:none; box-shadow:0 0 0 2.5px var(--accent); background:var(--bg-card); }
+  .wl-item{
+    display:flex; align-items:center; gap:12px; background:var(--accent-soft);
+    border-radius:var(--r-md); padding:11px 14px; margin-bottom:8px;
+  }
+  .wl-item:last-child{ margin-bottom:0; }
+  .wl-body{ flex:1; min-width:0; }
+  .wl-titol{ font-weight:700; font-size:0.9rem; }
+  .wl-meta{ font-size:0.76rem; color:var(--text-soft); margin-top:2px; }
+  .wl-actions{ display:flex; gap:6px; flex-shrink:0; }
+  .wl-btn{
+    border:none; border-radius:var(--r-pill); cursor:pointer;
+    font-family:var(--sys); font-weight:600; font-size:0.74rem;
+    padding:6px 11px; transition:transform 0.08s;
+  }
+  .wl-btn:active{ transform:scale(0.94); }
+  .wl-btn.got{ background:var(--c-historia); color:#fff; }
+  .wl-btn.remove{ background:rgba(43,38,32,0.08); color:var(--text-soft); }
+
+  .continue-reading{
+    display:flex; align-items:center; gap:14px;
+    background: var(--bg-card); border-radius: var(--r-lg);
+    padding: 14px 18px; margin-bottom: 18px;
+    box-shadow: 0 1px 2px rgba(43,38,32,0.05), 0 1px 8px rgba(43,38,32,0.045);
+    cursor:pointer; transition: box-shadow 0.15s;
+  }
+  .continue-reading:hover{ box-shadow: 0 4px 16px rgba(43,38,32,0.09); }
+  .continue-reading .cr-icon{ font-size:1.6rem; flex-shrink:0; }
+  .continue-reading .cr-body{ flex:1; min-width:0; }
+  .continue-reading .cr-label{
+    font-family:var(--sys); font-size:0.68rem; font-weight:700; text-transform:uppercase;
+    letter-spacing:0.04em; color:var(--text-faint); margin-bottom:2px;
+  }
+  .continue-reading .cr-title{
+    font-family:'Fraunces',serif; font-weight:700; font-size:1rem;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .continue-reading .cr-track{
+    height:5px; border-radius:var(--r-pill); background:rgba(43,38,32,0.08);
+    margin-top:8px; overflow:hidden;
+  }
+  .continue-reading .cr-fill{ height:100%; background:var(--accent); border-radius:var(--r-pill); }
+  .continue-reading .cr-pct{
+    font-family:var(--sys); font-weight:700; font-size:0.85rem; color:var(--accent); flex-shrink:0;
+  }
+
+  .user-switch{
+    border:none; background:var(--accent-soft); color:var(--text-soft);
+    font-family:var(--sys); font-weight:600; font-size:0.76rem;
+    padding:6px 12px; border-radius:var(--r-pill); cursor:pointer;
+    transition: background 0.15s;
+  }
+  .user-switch:hover{ background:var(--border-soft); }
 
   .readonly-banner{
     background: var(--accent-soft);
@@ -728,9 +814,13 @@
       <div class="sub">Catàleg de Guillem i Nàstia</div>
     </div>
     <div class="stats" id="stats"></div>
+    <button type="button" class="user-switch" id="btnThemeToggle" title="Canvia de tema" aria-label="Canvia de tema">🌙</button>
+    <button type="button" class="user-switch" id="btnUserSwitch"></button>
   </header>
 
   <div class="readonly-banner" id="readonlyBanner" style="display:none;">📖 Mode lectura — pots consultar el catàleg, no editar-lo.</div>
+
+  <div id="continueReading"></div>
 
   <div class="toolbar">
     <div class="search">
@@ -758,6 +848,8 @@
     </div>
     <button class="btn-outline" id="btnFilters">Filtres<span class="filter-badge" id="filterBadge" style="display:none;"></span></button>
     <button class="btn-outline" id="btnRandom">🎲 Sorprèn-me</button>
+    <button class="btn-outline" id="btnWishlist">💭 Vull llegir</button>
+    <button class="btn-outline" id="btnDiscover">🔍 Descobreix</button>
     <button class="btn-outline" id="btnShare">Comparteix</button>
     <button class="btn-outline" id="btnStats">Estadístiques</button>
     <button class="btn-outline" id="btnAdvanced">⚙ Opcions avançades</button>
@@ -802,6 +894,27 @@
     </div>
   </div>
 
+  <div class="stats-panel" id="wishlistPanel" style="display:none;">
+    <div class="stats-panel-header">
+      <h2>💭 Vull llegir</h2>
+      <button class="stats-close" id="btnWishlistClose" type="button" aria-label="Tanca la llista de desitjos">✕</button>
+    </div>
+    <div class="wishlist-form">
+      <input type="text" id="wl_titol" placeholder="Títol del llibre…">
+      <input type="text" id="wl_autor" placeholder="Autor (opcional)…">
+      <button type="button" class="btn btn-primary" id="btnWishlistAdd">+ Afegeix</button>
+    </div>
+    <div id="wishlistList"></div>
+  </div>
+
+  <div class="stats-panel" id="discoverPanel" style="display:none;">
+    <div class="stats-panel-header">
+      <h2>🔍 Descobreix</h2>
+      <button class="stats-close" id="btnDiscoverClose" type="button" aria-label="Tanca descobreix">✕</button>
+    </div>
+    <div id="discoverBody"></div>
+  </div>
+
   <div class="filters-panel" id="filtersPanel" style="display:none;">
     <div class="filters" id="filters"></div>
   </div>
@@ -824,6 +937,7 @@
 <div class="overlay" id="overlay">
   <div class="modal">
     <h2 id="modalTitle">Afegir llibre</h2>
+    <div id="afegitPerInfo" style="font-size:0.78rem; color:var(--text-faint); margin-top:-14px; margin-bottom:16px; display:none;"></div>
     <form id="bookForm">
       <div class="isbn-lookup" id="isbnLookup">
         <label>Omplir dades a partir de l'ISBN</label>
@@ -1208,6 +1322,45 @@ let sortBy = 'titol';
 
 const READONLY = new URLSearchParams(location.search).get('share') === '1';
 let viewMode = localStorage.getItem('biblioteca_view_mode') || 'grid';
+let CURRENT_USER = localStorage.getItem('biblioteca_usuari') || null;
+
+function applyTheme(theme){
+  document.documentElement.setAttribute('data-theme', theme);
+  document.getElementById('btnThemeToggle').textContent = theme === 'dark' ? '☀️' : '🌙';
+  localStorage.setItem('biblioteca_theme', theme);
+}
+document.getElementById('btnThemeToggle').onclick = () => {
+  const actual = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+  applyTheme(actual === 'dark' ? 'light' : 'dark');
+};
+applyTheme(localStorage.getItem('biblioteca_theme') || 'light');
+
+function ensureCurrentUser(){
+  if(CURRENT_USER || READONLY) return;
+  const triat = prompt('Qui ets? Escriu "Guillem" o "Nàstia" (només es pregunta un cop en aquest dispositiu)');
+  if(triat && triat.trim()){
+    CURRENT_USER = triat.trim();
+    localStorage.setItem('biblioteca_usuari', CURRENT_USER);
+  }
+  renderUserSwitch();
+}
+
+function renderUserSwitch(){
+  const btn = document.getElementById('btnUserSwitch');
+  if(!btn) return;
+  if(READONLY){ btn.style.display = 'none'; return; }
+  btn.textContent = CURRENT_USER ? `👤 ${CURRENT_USER}` : '👤 Qui ets?';
+}
+document.getElementById('btnUserSwitch').onclick = () => {
+  const triat = prompt('Qui ets? Escriu "Guillem" o "Nàstia"', CURRENT_USER || '');
+  if(triat === null) return;
+  if(triat.trim()){
+    CURRENT_USER = triat.trim();
+    localStorage.setItem('biblioteca_usuari', CURRENT_USER);
+    renderUserSwitch();
+  }
+};
+renderUserSwitch();
 
 const LANG_MAP = { ca:'Català', es:'Espanyol', en:'Anglès', fr:'Francès', it:'Italià', pt:'Portuguès', de:'Alemany', ja:'Japonès' };
 
@@ -1285,6 +1438,7 @@ async function loadBooks(){
     document.getElementById('loadingState').style.display = 'none';
     document.getElementById('grid').style.display = '';
     renderHeaderStats();
+    renderContinueReading();
     renderFilters();
     renderGrid();
     window.scrollTo(0, scrollY);
@@ -1294,11 +1448,38 @@ async function loadBooks(){
   }
 }
 
+function renderContinueReading(){
+  const el = document.getElementById('continueReading');
+  const enCurs = ALL_BOOKS.filter(b => b.llegit === 'Llegint');
+  if(!enCurs.length){ el.innerHTML = ''; return; }
+
+  el.innerHTML = enCurs.slice(0, 2).map(b => {
+    const pct = b.progres_lectura ?? 0;
+    return `<div class="continue-reading" data-id="${b.id}">
+      <span class="cr-icon">📖</span>
+      <div class="cr-body">
+        <div class="cr-label">Seguint llegint</div>
+        <div class="cr-title">${escapeHtml(b.titol)} <span style="font-weight:500; color:var(--text-soft);">— ${escapeHtml(formatAuthor(b.autor))}</span></div>
+        <div class="cr-track"><div class="cr-fill" style="width:${pct}%"></div></div>
+      </div>
+      <span class="cr-pct">${pct}%</span>
+    </div>`;
+  }).join('');
+
+  el.querySelectorAll('.continue-reading').forEach(card => {
+    card.addEventListener('click', () => {
+      const book = ALL_BOOKS.find(b => b.id === card.dataset.id);
+      if(book) openModal(book);
+    });
+  });
+}
+
 function renderHeaderStats(){
-  const total = ALL_BOOKS.length;
-  const guillem = ALL_BOOKS.filter(b => (b.ubicacio||'').includes('Guillem')).length;
-  const nastia = ALL_BOOKS.filter(b => (b.ubicacio||'').includes('Nàstia')).length;
-  const synology = ALL_BOOKS.filter(b => (b.ubicacio||'').includes('Synology')).length;
+  const catalogats = ALL_BOOKS.filter(b => !b.es_desig);
+  const total = catalogats.length;
+  const guillem = catalogats.filter(b => (b.ubicacio||'').includes('Guillem')).length;
+  const nastia = catalogats.filter(b => (b.ubicacio||'').includes('Nàstia')).length;
+  const synology = catalogats.filter(b => (b.ubicacio||'').includes('Synology')).length;
   document.getElementById('stats').innerHTML = `
     <div><b>${total}</b>llibres</div>
     <div><b>${guillem}</b>de Guillem</div>
@@ -1383,6 +1564,7 @@ function makeSelect(key, placeholder, options){
 let incompleteFieldFilter = null;
 
 function matchesFilters(b){
+  if(b.es_desig) return false; // els desitjos nomes es veuen al seu propi panell
   if(incompleteFieldFilter){
     return !b[incompleteFieldFilter] || !String(b[incompleteFieldFilter]).trim();
   }
@@ -1750,6 +1932,15 @@ function openModal(book){
   f('f_progres', book?.progres_lectura);
   document.getElementById('f_favorit').checked = !!book?.favorit;
   setTipusDocument(book?.tipus_document || 'Llibre');
+
+  const afegitInfo = document.getElementById('afegitPerInfo');
+  if(book && book.afegit_per){
+    const data = book.created_at ? new Date(book.created_at).toLocaleDateString('ca-ES') : '';
+    afegitInfo.textContent = `Afegit per ${book.afegit_per}${data ? ' · ' + data : ''}`;
+    afegitInfo.style.display = 'block';
+  } else {
+    afegitInfo.style.display = 'none';
+  }
   setStarRating(book?.valoracio || 0);
   toggleProgresWrap();
   f('f_isbn', book?.isbn);
@@ -1850,6 +2041,152 @@ document.getElementById('btnAdvanced').onclick = () => {
 };
 document.getElementById('btnAdvancedClose').onclick = () => {
   document.getElementById('advancedPanel').style.display = 'none';
+};
+
+document.getElementById('btnWishlist').onclick = () => {
+  const panel = document.getElementById('wishlistPanel');
+  const visible = panel.style.display !== 'none';
+  panel.style.display = visible ? 'none' : 'block';
+  if(!visible) renderWishlist();
+};
+document.getElementById('btnWishlistClose').onclick = () => {
+  document.getElementById('wishlistPanel').style.display = 'none';
+};
+
+document.getElementById('btnDiscover').onclick = () => {
+  const panel = document.getElementById('discoverPanel');
+  const visible = panel.style.display !== 'none';
+  panel.style.display = visible ? 'none' : 'block';
+  if(!visible) renderDiscover();
+};
+document.getElementById('btnDiscoverClose').onclick = () => {
+  document.getElementById('discoverPanel').style.display = 'none';
+};
+
+function renderDiscover(){
+  const body = document.getElementById('discoverBody');
+  const catalogats = ALL_BOOKS.filter(b => !b.es_desig && b.paraules_clau);
+
+  // Llavors: llibres que t'han agradat (favorits, ben valorats o llegits) i que tenen paraules clau
+  const llavors = catalogats.filter(b => b.favorit || (b.valoracio && b.valoracio >= 4) || b.llegit === 'Sí');
+  const font = llavors.length ? llavors : catalogats;
+  if(!font.length){
+    body.innerHTML = '<div style="color:var(--text-soft); font-size:0.85rem;">Encara no hi ha prou paraules clau per fer recomanacions. Omple\'n unes quantes fitxes i torna-hi.</div>';
+    return;
+  }
+
+  const llavor = font[Math.floor(Math.random() * font.length)];
+  const keySet = new Set(parseKeywords(llavor.paraules_clau));
+
+  const suggerits = catalogats
+    .filter(b => b.id !== llavor.id && b.llegit !== 'Sí')
+    .map(b => ({ book: b, comunes: parseKeywords(b.paraules_clau).filter(k => keySet.has(k)).length }))
+    .filter(r => r.comunes > 0)
+    .sort((a, b) => b.comunes - a.comunes)
+    .slice(0, 6);
+
+  if(!suggerits.length){
+    body.innerHTML = `<div style="color:var(--text-soft); font-size:0.85rem;">No he trobat cap llibre pendent relacionat amb <b>${escapeHtml(llavor.titol)}</b>. Prem "Descobreix" un altre cop per provar-ho amb un altre llibre.</div>`;
+    return;
+  }
+
+  body.innerHTML = `
+    <div style="font-size:0.82rem; color:var(--text-soft); margin-bottom:14px;">
+      Com que et va agradar <b style="color:var(--text);">${escapeHtml(llavor.titol)}</b>, potser també t'interessin aquests:
+    </div>
+    <div id="discoverList"></div>
+    <button type="button" class="btn btn-secondary" id="btnDiscoverAgain" style="margin-top:14px; width:100%;">🔄 Un altre punt de partida</button>
+  `;
+  const list = document.getElementById('discoverList');
+  suggerits.forEach(r => {
+    const item = document.createElement('div');
+    item.className = 'dup-item';
+    item.innerHTML = `<span>${escapeHtml(r.book.titol)} <span style="color:var(--text-soft); font-weight:500;">— ${escapeHtml(formatAuthor(r.book.autor))}</span></span><span class="dup-open">${r.comunes} en comú ›</span>`;
+    item.addEventListener('click', () => {
+      document.getElementById('discoverPanel').style.display = 'none';
+      openModal(r.book);
+    });
+    list.appendChild(item);
+  });
+  document.getElementById('btnDiscoverAgain').onclick = renderDiscover;
+}
+
+function renderWishlist(){
+  const desitjos = ALL_BOOKS.filter(b => b.es_desig);
+  const list = document.getElementById('wishlistList');
+  if(!desitjos.length){
+    list.innerHTML = '<div style="color:var(--text-soft); font-size:0.85rem;">Encara no hi ha res a la llista. Afegeix el primer llibre aquí sobre.</div>';
+    return;
+  }
+  list.innerHTML = desitjos.map(b => `
+    <div class="wl-item" data-id="${b.id}">
+      <div class="wl-body">
+        <div class="wl-titol">${escapeHtml(b.titol)}</div>
+        <div class="wl-meta">${[formatAuthor(b.autor), b.afegit_per ? `apuntat per ${escapeHtml(b.afegit_per)}` : null].filter(Boolean).join(' · ')}</div>
+      </div>
+      <div class="wl-actions">
+        ${!READONLY ? `<button type="button" class="wl-btn got" data-action="got">✓ Ja el tinc</button>` : ''}
+        ${!READONLY ? `<button type="button" class="wl-btn remove" data-action="remove">✕</button>` : ''}
+      </div>
+    </div>
+  `).join('');
+
+  list.querySelectorAll('.wl-item').forEach(item => {
+    const id = item.dataset.id;
+    const book = ALL_BOOKS.find(b => b.id === id);
+    const gotBtn = item.querySelector('[data-action="got"]');
+    const removeBtn = item.querySelector('[data-action="remove"]');
+    if(gotBtn) gotBtn.onclick = async () => {
+      gotBtn.disabled = true;
+      const { error } = await sb.from('llibres').update({ es_desig: false, updated_at: new Date().toISOString() }).eq('id', id);
+      if(error){ toast('Error actualitzant', 'error'); gotBtn.disabled = false; return; }
+      book.es_desig = false;
+      document.getElementById('wishlistPanel').style.display = 'none';
+      toast('Ara completa la fitxa amb les dades que et falten');
+      openModal(book);
+    };
+    if(removeBtn) removeBtn.onclick = async () => {
+      if(!confirm(`Treure "${book.titol}" de la llista de desitjos?`)) return;
+      removeBtn.disabled = true;
+      const { error } = await sb.from('llibres').delete().eq('id', id);
+      if(error){ toast('Error eliminant', 'error'); removeBtn.disabled = false; return; }
+      const idx = ALL_BOOKS.findIndex(b => b.id === id);
+      if(idx !== -1) ALL_BOOKS.splice(idx, 1);
+      renderWishlist();
+      renderHeaderStats();
+    };
+  });
+}
+
+document.getElementById('btnWishlistAdd').onclick = async () => {
+  if(READONLY) return;
+  const titolEl = document.getElementById('wl_titol');
+  const autorEl = document.getElementById('wl_autor');
+  const titol = titolEl.value.trim();
+  if(!titol){ toast('Cal un títol', 'error'); return; }
+
+  const btn = document.getElementById('btnWishlistAdd');
+  btn.disabled = true;
+  try{
+    const payload = {
+      titol,
+      autor: autorEl.value.trim() || null,
+      es_desig: true,
+      afegit_per: CURRENT_USER || null,
+    };
+    const { data, error } = await sb.from('llibres').insert(payload).select();
+    if(error) throw error;
+    if(data && data[0]) ALL_BOOKS.push(data[0]);
+    titolEl.value = ''; autorEl.value = '';
+    renderWishlist();
+    renderHeaderStats();
+    toast('Afegit a la llista de desitjos');
+  }catch(err){
+    console.error(err);
+    toast('Error afegint a la llista', 'error');
+  }finally{
+    btn.disabled = false;
+  }
 };
 
 function renderBiblio(){
@@ -2015,7 +2352,7 @@ function updateFilterBadge(){
 
 function countBy(field, splitOn){
   const map = {};
-  ALL_BOOKS.forEach(b => {
+  ALL_BOOKS.filter(b => !b.es_desig).forEach(b => {
     const v = b[field];
     if(!v) return;
     const parts = splitOn ? v.split(splitOn).map(p=>p.trim()) : [v];
@@ -2026,15 +2363,16 @@ function countBy(field, splitOn){
 
 function renderStats(){
   const grid = document.getElementById('statsGrid');
-  const total = ALL_BOOKS.length;
-  const llegits = ALL_BOOKS.filter(b => b.llegit === 'Sí').length;
-  const llegintAra = ALL_BOOKS.filter(b => b.llegit === 'Llegint').length;
-  const pendents = ALL_BOOKS.filter(b => b.llegit !== 'Sí' && b.llegit !== 'Llegint').length;
-  const guillem = ALL_BOOKS.filter(b => (b.ubicacio||'').includes('Guillem')).length;
-  const nastia = ALL_BOOKS.filter(b => (b.ubicacio||'').includes('Nàstia')).length;
-  const digital = ALL_BOOKS.filter(b => (b.ubicacio||'').includes('Synology')).length;
+  const catalogats = ALL_BOOKS.filter(b => !b.es_desig);
+  const total = catalogats.length;
+  const llegits = catalogats.filter(b => b.llegit === 'Sí').length;
+  const llegintAra = catalogats.filter(b => b.llegit === 'Llegint').length;
+  const pendents = catalogats.filter(b => b.llegit !== 'Sí' && b.llegit !== 'Llegint').length;
+  const guillem = catalogats.filter(b => (b.ubicacio||'').includes('Guillem')).length;
+  const nastia = catalogats.filter(b => (b.ubicacio||'').includes('Nàstia')).length;
+  const digital = catalogats.filter(b => (b.ubicacio||'').includes('Synology')).length;
 
-  const ambPreu = ALL_BOOKS.filter(b => typeof b.preu === 'number' && !isNaN(b.preu));
+  const ambPreu = catalogats.filter(b => typeof b.preu === 'number' && !isNaN(b.preu));
   const valorTotal = ambPreu.reduce((sum, b) => sum + b.preu, 0);
   const valorFmt = valorTotal.toLocaleString('ca-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
 
@@ -2228,7 +2566,7 @@ document.getElementById('btnImportConfirm').onclick = async () => {
   const btn = document.getElementById('btnImportConfirm');
   btn.disabled = true; btn.textContent = 'Important…';
 
-  const toInsert = pendingImportRows.map(({_isDup, ...rest}) => rest);
+  const toInsert = pendingImportRows.map(({_isDup, ...rest}) => ({...rest, afegit_per: CURRENT_USER || null}));
   const batchSize = 100;
   let inserted = 0;
   try{
@@ -2847,6 +3185,7 @@ document.getElementById('bookForm').addEventListener('submit', async (e) => {
   if(err){ toast(err, 'error'); return; }
 
   const payload = buildPayload();
+  payload.afegit_per = CURRENT_USER || null;
 
   const titolNorm = payload.titol.toLowerCase().trim();
   const dupTitol = ALL_BOOKS.find(b => b.titol?.toLowerCase().trim() === titolNorm);
@@ -2870,6 +3209,7 @@ document.getElementById('bookForm').addEventListener('submit', async (e) => {
     if(data && data[0]){
       ALL_BOOKS.push(data[0]);
       renderHeaderStats();
+    renderContinueReading();
       renderFilters();
       renderGrid();
     } else {
@@ -2900,6 +3240,7 @@ document.getElementById('btnDelete').onclick = async () => {
     const idx = ALL_BOOKS.findIndex(b => b.id === idAEliminar);
     if(idx !== -1) ALL_BOOKS.splice(idx, 1);
     renderHeaderStats();
+    renderContinueReading();
     renderFilters();
     renderGrid();
   }catch(err){
@@ -2912,6 +3253,7 @@ document.getElementById('btnDelete').onclick = async () => {
 document.getElementById('btnRetryLoad').onclick = () => loadBooks();
 
 setViewMode(viewMode);
+ensureCurrentUser();
 loadBooks();
 </script>
 </body>
