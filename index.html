@@ -212,6 +212,40 @@
     box-shadow: none;
   }
 
+  .grid.shelf-view{
+    grid-template-columns: 1fr;
+    gap: 0; background: transparent; box-shadow:none; border-radius:0;
+  }
+  .shelf-row{
+    display:flex; align-items:flex-end; gap:2px; flex-wrap:wrap;
+    padding: 14px 10px 0; margin-bottom: 22px;
+    border-bottom: 10px solid var(--accent);
+    border-radius: 3px 3px 6px 6px;
+    box-shadow: 0 6px 10px -6px rgba(43,38,32,0.35);
+    position:relative;
+  }
+  .spine{
+    height: 190px;
+    border-radius: 3px 3px 1px 1px;
+    display:flex; flex-direction:column; align-items:center; justify-content:flex-start;
+    padding: 10px 0 8px;
+    cursor:pointer; flex-shrink:0;
+    box-shadow: inset 2px 0 3px rgba(255,255,255,0.18), inset -2px 0 3px rgba(0,0,0,0.18), 1px 0 2px rgba(0,0,0,0.15);
+    transition: transform 0.12s, height 0.12s;
+  }
+  .spine:hover{ transform: translateY(-8px); }
+  .spine:active{ transform: translateY(-4px) scale(0.98); }
+  .spine-title{
+    writing-mode: vertical-rl; transform: rotate(180deg);
+    font-family:'Fraunces', serif; font-weight:700; font-size:0.72rem;
+    color: rgba(255,255,255,0.94); white-space:nowrap; overflow:hidden;
+    text-overflow: ellipsis; max-height: 155px;
+    text-shadow: 0 1px 1px rgba(0,0,0,0.25);
+  }
+  .spine-marks{
+    font-size:0.62rem; color:#fff; margin-top:6px; opacity:0.92; letter-spacing:1px;
+  }
+
   .chrono-header{
     display:flex; justify-content:space-between; align-items:center;
     padding: 18px 4px 4px; margin-top: 6px;
@@ -845,6 +879,9 @@
       <button id="viewChrono" type="button" title="Vista cronològica per període" aria-label="Vista cronològica">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="4" x2="4" y2="20"/><circle cx="4" cy="7" r="1.6" fill="currentColor" stroke="none"/><circle cx="4" cy="13" r="1.6" fill="currentColor" stroke="none"/><circle cx="4" cy="19" r="1.6" fill="currentColor" stroke="none"/><line x1="9" y1="7" x2="20" y2="7"/><line x1="9" y1="13" x2="20" y2="13"/><line x1="9" y1="19" x2="20" y2="19"/></svg>
       </button>
+      <button id="viewShelf" type="button" title="Vista de prestatgeria" aria-label="Vista de prestatgeria">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="3" height="15"/><rect x="7.5" y="3" width="2" height="15"/><rect x="11" y="3" width="4" height="15"/><rect x="16.5" y="3" width="2.5" height="15"/><rect x="20" y="3" width="1.5" height="15"/><line x1="2" y1="19.5" x2="22" y2="19.5"/></svg>
+      </button>
     </div>
     <button class="btn-outline" id="btnFilters">Filtres<span class="filter-badge" id="filterBadge" style="display:none;"></span></button>
     <button class="btn-outline" id="btnRandom">🎲 Sorprèn-me</button>
@@ -1369,9 +1406,11 @@ function setViewMode(mode){
   viewMode = mode;
   localStorage.setItem('biblioteca_view_mode', mode);
   document.getElementById('grid').classList.toggle('list-view', mode === 'list' || mode === 'chrono');
+  document.getElementById('grid').classList.toggle('shelf-view', mode === 'shelf');
   document.getElementById('viewGrid').classList.toggle('active', mode === 'grid');
   document.getElementById('viewList').classList.toggle('active', mode === 'list');
   document.getElementById('viewChrono').classList.toggle('active', mode === 'chrono');
+  document.getElementById('viewShelf').classList.toggle('active', mode === 'shelf');
   if(changed && ALL_BOOKS.length) renderGrid();
 }
 
@@ -1671,6 +1710,23 @@ function renderGrid(){
     return;
   }
 
+  if(viewMode === 'shelf'){
+    const grups = {};
+    filtered.forEach(b => {
+      const key = (b.area_principal || 'Sense àrea').split(',')[0].trim();
+      (grups[key] = grups[key] || []).push(b);
+    });
+    const noms = Object.keys(grups).sort((a, b) => grups[b].length - grups[a].length);
+    noms.forEach(nom => {
+      grid.appendChild(buildChronoHeader(nom, grups[nom].length));
+      const shelf = document.createElement('div');
+      shelf.className = 'shelf-row';
+      sortBooks(grups[nom]).forEach(b => shelf.appendChild(buildSpine(b)));
+      grid.appendChild(shelf);
+    });
+    return;
+  }
+
   filtered.forEach(b => {
     const el = viewMode === 'list' ? buildListRow(b) : buildGridCard(b);
     grid.appendChild(el);
@@ -1733,6 +1789,39 @@ function attachCardOpen(el, b, skipSelector){
       e.preventDefault(); openModal(b);
     }
   });
+}
+
+function spineWidth(titol){
+  // Amplada pseudo-aleatoria pero estable per llibre, perque el prestatge
+  // no tingui tots els lloms identics (com una prestatgeria de veritat).
+  let hash = 0;
+  for(let i = 0; i < titol.length; i++) hash = (hash * 31 + titol.charCodeAt(i)) >>> 0;
+  return 26 + (hash % 22); // entre 26 i 48px
+}
+
+function buildSpine(b){
+  const spine = document.createElement('div');
+  spine.className = 'spine';
+  spine.style.background = areaColor(b.area_principal);
+  spine.style.width = spineWidth(b.titol) + 'px';
+  spine.setAttribute('role', 'button');
+  spine.setAttribute('tabindex', '0');
+  spine.setAttribute('aria-label', `${b.titol}, de ${formatAuthor(b.autor)}`);
+  spine.title = `${b.titol} — ${formatAuthor(b.autor)}`;
+
+  const marques = [];
+  if(b.favorit) marques.push('★');
+  if(b.llegit === 'Sí') marques.push('✓');
+
+  spine.innerHTML = `
+    <span class="spine-title">${escapeHtml(b.titol)}</span>
+    ${marques.length ? `<span class="spine-marks">${marques.join(' ')}</span>` : ''}
+  `;
+  spine.addEventListener('click', () => openModal(b));
+  spine.addEventListener('keydown', (e) => {
+    if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); openModal(b); }
+  });
+  return spine;
 }
 
 function buildGridCard(b){
@@ -1982,6 +2071,7 @@ document.getElementById('overlay').addEventListener('click', (e) => {
 document.getElementById('viewGrid').onclick = () => setViewMode('grid');
 document.getElementById('viewList').onclick = () => setViewMode('list');
 document.getElementById('viewChrono').onclick = () => setViewMode('chrono');
+document.getElementById('viewShelf').onclick = () => setViewMode('shelf');
 document.getElementById('sortSelect').onchange = (e) => { sortBy = e.target.value; renderGrid(); };
 
 document.getElementById('btnRandom').onclick = () => {
