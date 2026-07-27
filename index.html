@@ -824,15 +824,38 @@
         </div>
         <div>
           <label>Format</label>
-          <input type="text" id="f_format" placeholder="Físic, PDF, EPUB…">
+          <input type="text" id="f_format" list="formatsList" autocomplete="off" placeholder="Físic, PDF, EPUB…">
+          <datalist id="formatsList">
+            <option value="PDF, EPUB">
+            <option value="PDF">
+            <option value="Físic">
+            <option value="EPUB">
+            <option value="Físic, PDF, EPUB">
+          </datalist>
         </div>
         <div>
           <label>Ubicació</label>
-          <input type="text" id="f_ubicacio" placeholder="Guillem, Synology…">
+          <input type="text" id="f_ubicacio" list="ubicacionsList" autocomplete="off" placeholder="Guillem, Synology…">
+          <datalist id="ubicacionsList">
+            <option value="Synology">
+            <option value="Guillem">
+            <option value="Guillem, Synology">
+          </datalist>
         </div>
         <div>
           <label>Idioma</label>
-          <input type="text" id="f_idioma">
+          <input type="text" id="f_idioma" list="idiomesList" autocomplete="off">
+          <datalist id="idiomesList">
+            <option value="Català">
+            <option value="Espanyol">
+            <option value="Anglès">
+            <option value="Francès">
+            <option value="Italià">
+            <option value="Portuguès">
+            <option value="Alemany">
+            <option value="Llatí">
+            <option value="Grec">
+          </datalist>
         </div>
         <div>
           <label>Llegit</label>
