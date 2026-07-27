@@ -198,6 +198,13 @@
     color: var(--text); border-bottom: 2px solid var(--accent-soft);
   }
   .grid.list-view > .chrono-header:first-child{ margin-top:0; padding-top:0; }
+  .chrono-subheader{
+    display:flex; justify-content:space-between; align-items:center;
+    padding: 10px 10px 4px; margin-top: 4px;
+    font-family: var(--sys); font-weight:700; font-size:0.76rem;
+    text-transform:uppercase; letter-spacing:0.03em;
+    color: var(--text-soft);
+  }
   .chrono-count{
     font-family: var(--sys); font-weight:700; font-size:0.72rem;
     color: var(--text-faint); background: var(--accent-soft);
@@ -811,15 +818,11 @@
           <label>Període històric</label>
           <select id="f_periode">
             <option value="">— sense classificar —</option>
-            <option>Antiguitat (fins 476)</option>
-            <option>Edat Mitjana (476-1492)</option>
-            <option>Edat Moderna (1492-1789)</option>
-            <option>El llarg segle XIX (1789-1914)</option>
-            <option>Guerres mundials i entreguerres (1914-1945)</option>
-            <option>Guerra Civil espanyola i franquisme (1936-1975)</option>
-            <option>Guerra Freda i dictadures llatinoamericanes (1945-1991)</option>
-            <option>Món contemporani (1991-avui)</option>
-            <option>Literatura i assaig (sense període fix)</option>
+            <option>Prehistòria</option>
+            <option>Edat Antiga</option>
+            <option>Edat Mitjana</option>
+            <option>Edat Moderna</option>
+            <option>Edat Contemporània</option>
           </select>
         </div>
         <div>
@@ -974,15 +977,11 @@ const AREA_COLORS = {
 };
 
 const PERIOD_ORDER = [
-  'Antiguitat (fins 476)',
-  'Edat Mitjana (476-1492)',
-  'Edat Moderna (1492-1789)',
-  'El llarg segle XIX (1789-1914)',
-  'Guerres mundials i entreguerres (1914-1945)',
-  'Guerra Civil espanyola i franquisme (1936-1975)',
-  'Guerra Freda i dictadures llatinoamericanes (1945-1991)',
-  'Món contemporani (1991-avui)',
-  'Literatura i assaig (sense període fix)',
+  'Prehistòria',
+  'Edat Antiga',
+  'Edat Mitjana',
+  'Edat Moderna',
+  'Edat Contemporània',
 ];
 
 const ROMAN_CENTURIES = {
@@ -1025,6 +1024,37 @@ function buildChronoHeader(periode, count){
   header.className = 'chrono-header';
   header.innerHTML = `<span>${escapeHtml(periode)}</span><span class="chrono-count">${count}</span>`;
   return header;
+}
+
+function buildChronoSubheader(tipologia, count){
+  const header = document.createElement('div');
+  header.className = 'chrono-subheader';
+  header.innerHTML = `<span>${escapeHtml(tipologia)}</span><span class="chrono-count">${count}</span>`;
+  return header;
+}
+
+const SUBGROUP_THRESHOLD = 15;
+
+function renderPeriodGroup(grid, periode, books){
+  grid.appendChild(buildChronoHeader(periode, books.length));
+
+  if(books.length <= SUBGROUP_THRESHOLD){
+    sortByEventYear(books).forEach(b => grid.appendChild(buildListRow(b)));
+    return;
+  }
+
+  // Etapa amb molts llibres: sub-agrupa per Tipologia (ja existent a cada fitxa,
+  // sense haver de classificar res de nou) perquè no sigui una paret de 400 files.
+  const subgrups = {};
+  books.forEach(b => {
+    const key = b.tipologia || 'Altres';
+    (subgrups[key] = subgrups[key] || []).push(b);
+  });
+  const nomsOrdenats = Object.keys(subgrups).sort((a, b) => subgrups[b].length - subgrups[a].length);
+  nomsOrdenats.forEach(nom => {
+    grid.appendChild(buildChronoSubheader(nom, subgrups[nom].length));
+    sortByEventYear(subgrups[nom]).forEach(b => grid.appendChild(buildListRow(b)));
+  });
 }
 
 let ALL_BOOKS = [];
@@ -1283,17 +1313,11 @@ function renderGrid(){
       const key = b.periode_historic || 'Sense classificar';
       (grups[key] = grups[key] || []).push(b);
     });
-    PERIOD_ORDER.forEach(periode => {
+    const ordrePeriodes = [...PERIOD_ORDER, 'Sense classificar'];
+    ordrePeriodes.forEach(periode => {
       if(!grups[periode]) return;
-      const ordenats = sortByEventYear(grups[periode]);
-      grid.appendChild(buildChronoHeader(periode, ordenats.length));
-      ordenats.forEach(b => grid.appendChild(buildListRow(b)));
+      renderPeriodGroup(grid, periode, grups[periode]);
     });
-    if(grups['Sense classificar']){
-      const ordenats = sortByEventYear(grups['Sense classificar']);
-      grid.appendChild(buildChronoHeader('Sense classificar', ordenats.length));
-      ordenats.forEach(b => grid.appendChild(buildListRow(b)));
-    }
     return;
   }
 
