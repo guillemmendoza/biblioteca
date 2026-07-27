@@ -52,9 +52,6 @@
     font-family: var(--sys);
     min-height: 100vh;
     -webkit-font-smoothing: antialiased;
-  }
-
-  body{
     background-image:
       radial-gradient(circle at 20% 10%, rgba(139,94,60,0.045), transparent 40%),
       radial-gradient(circle at 90% 80%, rgba(30,138,95,0.035), transparent 40%);
@@ -412,7 +409,7 @@
     -webkit-text-stroke: 0.5px var(--text-soft);
     transition: color 0.1s, transform 0.08s;
   }
-  .star-rating .star:hover, .star-rating .star.hover{ transform: scale(1.15); }
+  .star-rating .star:hover{ transform: scale(1.15); }
   .star-rating .star.filled{ color: #C9962F; -webkit-text-stroke: 0.5px #A8792A; }
   .star-clear{
     border:none; background:none; cursor:pointer; color: var(--text-faint);
@@ -2865,11 +2862,18 @@ document.getElementById('bookForm').addEventListener('submit', async (e) => {
   submitBtn.textContent = 'Desant…';
 
   try{
-    const { error } = await sb.from('llibres').insert(payload);
+    const { data, error } = await sb.from('llibres').insert(payload).select();
     if(error) throw error;
     toast('Llibre afegit');
     closeModal();
-    loadBooks();
+    if(data && data[0]){
+      ALL_BOOKS.push(data[0]);
+      renderHeaderStats();
+      renderFilters();
+      renderGrid();
+    } else {
+      loadBooks(); // per si Supabase no retorna la fila, ho garantim amb recarrega
+    }
   }catch(err){
     console.error(err);
     toast('Error desant el llibre. Torna-ho a provar.', 'error');
@@ -2882,14 +2886,20 @@ document.getElementById('bookForm').addEventListener('submit', async (e) => {
 document.getElementById('btnDelete').onclick = async () => {
   if(READONLY || !editingId) return;
   if(!confirm('Segur que vols eliminar aquest llibre?')) return;
+  clearTimeout(autoSaveTimer); // evita que un autodesat pendent es dispari sobre una fila ja eliminada
+  const idAEliminar = editingId;
   const delBtn = document.getElementById('btnDelete');
   delBtn.disabled = true;
   try{
-    const { error } = await sb.from('llibres').delete().eq('id', editingId);
+    const { error } = await sb.from('llibres').delete().eq('id', idAEliminar);
     if(error) throw error;
     toast('Llibre eliminat');
     closeModal();
-    loadBooks();
+    const idx = ALL_BOOKS.findIndex(b => b.id === idAEliminar);
+    if(idx !== -1) ALL_BOOKS.splice(idx, 1);
+    renderHeaderStats();
+    renderFilters();
+    renderGrid();
   }catch(err){
     console.error(err);
     toast('Error eliminant el llibre', 'error');
