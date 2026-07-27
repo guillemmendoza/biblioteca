@@ -230,8 +230,10 @@
     display:flex; flex-direction:column; align-items:center; justify-content:flex-start;
     padding: 10px 0 8px;
     cursor:pointer; flex-shrink:0;
-    box-shadow: inset 2px 0 3px rgba(255,255,255,0.18), inset -2px 0 3px rgba(0,0,0,0.18), 1px 0 2px rgba(0,0,0,0.15);
-    transition: transform 0.12s, height 0.12s;
+    background-image: linear-gradient(to right, rgba(255,255,255,0.16), rgba(255,255,255,0) 12%, rgba(0,0,0,0) 88%, rgba(0,0,0,0.16));
+    transition: transform 0.1s;
+    content-visibility: auto;
+    contain-intrinsic-size: 40px 190px;
   }
   .spine:hover{ transform: translateY(-8px); }
   .spine:active{ transform: translateY(-4px) scale(0.98); }
@@ -240,7 +242,6 @@
     font-family:'Fraunces', serif; font-weight:700; font-size:0.72rem;
     color: rgba(255,255,255,0.94); white-space:nowrap; overflow:hidden;
     text-overflow: ellipsis; max-height: 155px;
-    text-shadow: 0 1px 1px rgba(0,0,0,0.25);
   }
   .spine-marks{
     font-size:0.62rem; color:#fff; margin-top:6px; opacity:0.92; letter-spacing:1px;
