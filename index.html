@@ -191,6 +191,19 @@
     box-shadow: none;
   }
 
+  .chrono-header{
+    display:flex; justify-content:space-between; align-items:center;
+    padding: 18px 4px 4px; margin-top: 6px;
+    font-family:'Fraunces', serif; font-weight:800; font-size:1.02rem;
+    color: var(--text); border-bottom: 2px solid var(--accent-soft);
+  }
+  .grid.list-view > .chrono-header:first-child{ margin-top:0; padding-top:0; }
+  .chrono-count{
+    font-family: var(--sys); font-weight:700; font-size:0.72rem;
+    color: var(--text-faint); background: var(--accent-soft);
+    padding: 3px 9px; border-radius: var(--r-pill);
+  }
+
   .list-row{
     display:flex; align-items:center; gap:13px;
     padding: 13px 15px;
@@ -530,6 +543,20 @@
   }
   .isbn-lookup label{ margin-bottom:6px; }
 
+  .related-wrap{ margin-top: 16px; }
+  .related-wrap label{ margin-bottom:8px; }
+  .related-item{
+    display:flex; justify-content:space-between; align-items:center; gap:10px;
+    background: var(--accent-soft); border-radius: var(--r-sm);
+    padding: 8px 12px; margin-bottom:6px; cursor:pointer;
+    font-size:0.82rem; transition: background 0.15s;
+  }
+  .related-item:last-child{ margin-bottom:0; }
+  .related-item:hover{ background: var(--border-soft); }
+  .related-item .ri-titol{ font-weight:600; }
+  .related-item .ri-autor{ color: var(--text-soft); font-weight:500; }
+  .related-item .ri-kw{ font-size:0.68rem; color: var(--accent); font-weight:700; flex-shrink:0; }
+
   #importSummary{ font-size:0.88rem; margin-bottom:12px; line-height:1.5; }
   #importSummary b{ color: var(--accent); }
   .import-preview{
@@ -650,11 +677,15 @@
       <button id="viewList" type="button" title="Vista de llista" aria-label="Vista de llista">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
       </button>
+      <button id="viewChrono" type="button" title="Vista cronològica per període" aria-label="Vista cronològica">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="4" x2="4" y2="20"/><circle cx="4" cy="7" r="1.6" fill="currentColor" stroke="none"/><circle cx="4" cy="13" r="1.6" fill="currentColor" stroke="none"/><circle cx="4" cy="19" r="1.6" fill="currentColor" stroke="none"/><line x1="9" y1="7" x2="20" y2="7"/><line x1="9" y1="13" x2="20" y2="13"/><line x1="9" y1="19" x2="20" y2="19"/></svg>
+      </button>
     </div>
     <button class="btn-outline" id="btnFilters">Filtres<span class="filter-badge" id="filterBadge" style="display:none;"></span></button>
     <button class="btn-outline" id="btnShare">Comparteix</button>
     <button class="btn-outline" id="btnStats">Estadístiques</button>
     <button class="btn-outline" id="btnAdvanced">⚙ Opcions avançades</button>
+    <button class="btn-outline" id="btnBiblio">📚 Bibliografia de treball</button>
     <input type="file" id="importFile" accept=".xlsx,.xls" style="display:none;">
     <button class="btn-add" id="btnAdd">+ Afegir llibre</button>
   </div>
@@ -687,6 +718,14 @@
         <button class="btn-outline" id="btnExport">↓ Exportar Excel</button>
       </div>
     </div>
+  </div>
+
+  <div class="stats-panel" id="biblioPanel" style="display:none;">
+    <div class="stats-panel-header">
+      <h2>Bibliografia de treball</h2>
+      <button class="stats-close" id="btnBiblioClose" type="button" aria-label="Tanca bibliografia de treball">✕</button>
+    </div>
+    <div id="biblioList"></div>
   </div>
 
   <div class="filters-panel" id="filtersPanel" style="display:none;">
@@ -774,6 +813,20 @@
           <input type="text" id="f_tipologia">
         </div>
         <div>
+          <label>Període històric</label>
+          <select id="f_periode">
+            <option value="">— sense classificar —</option>
+            <option>Antiguitat</option>
+            <option>Edat Mitjana</option>
+            <option>Edat Moderna (segles XVI-XVIII)</option>
+            <option>Segle XIX</option>
+            <option>Guerra Civil i franquisme (1936-1975)</option>
+            <option>Xile: Allende i Pinochet (1970-1990)</option>
+            <option>Segle XX-XXI</option>
+            <option>Literatura (sense període fix)</option>
+          </select>
+        </div>
+        <div>
           <label>Format</label>
           <input type="text" id="f_format" placeholder="Físic, PDF, EPUB…">
         </div>
@@ -839,6 +892,10 @@
           <textarea id="f_comentaris"></textarea>
         </div>
       </div>
+      <div id="relatedBooksWrap" class="related-wrap" style="display:none;">
+        <label>Llibres relacionats (mateixes paraules clau)</label>
+        <div id="relatedBooksList"></div>
+      </div>
       <div class="modal-actions">
         <div>
           <button type="button" class="btn btn-danger" id="btnDelete" style="display:none;">Eliminar</button>
@@ -897,6 +954,24 @@ const AREA_COLORS = {
   'Cultura i arts': 'var(--c-cultura)',
 };
 
+const PERIOD_ORDER = [
+  'Antiguitat',
+  'Edat Mitjana',
+  'Edat Moderna (segles XVI-XVIII)',
+  'Segle XIX',
+  'Guerra Civil i franquisme (1936-1975)',
+  'Xile: Allende i Pinochet (1970-1990)',
+  'Segle XX-XXI',
+  'Literatura (sense període fix)',
+];
+
+function buildChronoHeader(periode, count){
+  const header = document.createElement('div');
+  header.className = 'chrono-header';
+  header.innerHTML = `<span>${escapeHtml(periode)}</span><span class="chrono-count">${count}</span>`;
+  return header;
+}
+
 let ALL_BOOKS = [];
 let editingId = null;
 let activeFilters = { area: null, ubicacio: '', format: '', idioma: '', llegit: '' };
@@ -912,9 +987,10 @@ function setViewMode(mode){
   const changed = viewMode !== mode;
   viewMode = mode;
   localStorage.setItem('biblioteca_view_mode', mode);
-  document.getElementById('grid').classList.toggle('list-view', mode === 'list');
+  document.getElementById('grid').classList.toggle('list-view', mode === 'list' || mode === 'chrono');
   document.getElementById('viewGrid').classList.toggle('active', mode === 'grid');
   document.getElementById('viewList').classList.toggle('active', mode === 'list');
+  document.getElementById('viewChrono').classList.toggle('active', mode === 'chrono');
   if(changed && ALL_BOOKS.length) renderGrid();
 }
 
@@ -1136,7 +1212,7 @@ function renderGrid(){
 
   const bar = document.getElementById('resultsBar');
   if(incompleteFieldFilter){
-    const labels = { area_principal: 'sense àrea', idioma: 'sense idioma', format: 'sense format', ubicacio: 'sense ubicació', autor: 'sense autor' };
+    const labels = { area_principal: 'sense àrea', idioma: 'sense idioma', format: 'sense format', ubicacio: 'sense ubicació', autor: 'sense autor', paraules_clau: 'sense paraules clau' };
     bar.innerHTML = `<b>${n}</b> llibres ${labels[incompleteFieldFilter] || ''} <button type="button" id="btnClearIncomplete" class="clear-filters" style="border:none; background:none; cursor:pointer; display:inline;">— treu aquest filtre ✕</button>`;
     const clearBtn = document.getElementById('btnClearIncomplete');
     if(clearBtn) clearBtn.onclick = () => { incompleteFieldFilter = null; renderGrid(); };
@@ -1144,6 +1220,24 @@ function renderGrid(){
     bar.innerHTML = `<b>${total}</b> llibres`;
   } else {
     bar.innerHTML = `<b>${n}</b> de ${total} llibres`;
+  }
+
+  if(viewMode === 'chrono'){
+    const grups = {};
+    filtered.forEach(b => {
+      const key = b.periode_historic || 'Sense classificar';
+      (grups[key] = grups[key] || []).push(b);
+    });
+    PERIOD_ORDER.forEach(periode => {
+      if(!grups[periode]) return;
+      grid.appendChild(buildChronoHeader(periode, grups[periode].length));
+      grups[periode].forEach(b => grid.appendChild(buildListRow(b)));
+    });
+    if(grups['Sense classificar']){
+      grid.appendChild(buildChronoHeader('Sense classificar', grups['Sense classificar'].length));
+      grups['Sense classificar'].forEach(b => grid.appendChild(buildListRow(b)));
+    }
+    return;
   }
 
   filtered.forEach(b => {
@@ -1278,6 +1372,50 @@ function toggleProgresWrap(){
 }
 document.getElementById('f_llegit').addEventListener('change', toggleProgresWrap);
 
+function parseKeywords(str){
+  if(!str) return [];
+  return str.split(/[;,]/).map(k => normalizeHeader(k.trim())).filter(Boolean);
+}
+
+function renderRelatedBooks(book){
+  const wrap = document.getElementById('relatedBooksWrap');
+  if(!book || !book.paraules_clau){
+    wrap.style.display = 'none';
+    return;
+  }
+
+  const keySet = new Set(parseKeywords(book.paraules_clau));
+  if(!keySet.size){ wrap.style.display = 'none'; return; }
+
+  const relacionats = ALL_BOOKS
+    .filter(b => b.id !== book.id && b.paraules_clau)
+    .map(b => {
+      const seves = parseKeywords(b.paraules_clau);
+      const comunes = seves.filter(k => keySet.has(k));
+      return { book: b, comunes };
+    })
+    .filter(r => r.comunes.length > 0)
+    .sort((a, b) => b.comunes.length - a.comunes.length)
+    .slice(0, 8);
+
+  if(!relacionats.length){ wrap.style.display = 'none'; return; }
+
+  wrap.style.display = 'block';
+  document.getElementById('relatedBooksList').innerHTML = relacionats.map(r => `
+    <div class="related-item" data-id="${r.book.id}">
+      <span><span class="ri-titol">${escapeHtml(r.book.titol)}</span> <span class="ri-autor">— ${escapeHtml(formatAuthor(r.book.autor))}</span></span>
+      <span class="ri-kw">${r.comunes.length} en comú</span>
+    </div>
+  `).join('');
+
+  document.querySelectorAll('#relatedBooksList .related-item').forEach(el => {
+    el.addEventListener('click', () => {
+      const relBook = ALL_BOOKS.find(b => b.id === el.dataset.id);
+      if(relBook) openModal(relBook);
+    });
+  });
+}
+
 function openModal(book){
   editingId = book ? book.id : null;
   const isReadonlyView = READONLY;
@@ -1298,6 +1436,7 @@ function openModal(book){
   f('f_editorial', book?.editorial);
   f('f_area', book?.area_principal ? book.area_principal.split(',')[0].trim() : '');
   f('f_tipologia', book?.tipologia);
+  f('f_periode', book?.periode_historic);
   f('f_format', book?.format);
   f('f_ubicacio', book?.ubicacio);
   f('f_idioma', book?.idioma);
@@ -1312,6 +1451,8 @@ function openModal(book){
   f('f_projecte', book?.projecte_recerca);
   f('f_resum', book?.resum);
   f('f_comentaris', book?.comentaris);
+
+  renderRelatedBooks(book);
 
   document.getElementById('overlay').classList.add('open');
 }
@@ -1335,6 +1476,7 @@ document.getElementById('overlay').addEventListener('click', (e) => {
 
 document.getElementById('viewGrid').onclick = () => setViewMode('grid');
 document.getElementById('viewList').onclick = () => setViewMode('list');
+document.getElementById('viewChrono').onclick = () => setViewMode('chrono');
 document.getElementById('sortSelect').onchange = (e) => { sortBy = e.target.value; renderGrid(); };
 
 document.getElementById('btnShare').onclick = async () => {
@@ -1367,6 +1509,56 @@ document.getElementById('btnAdvancedClose').onclick = () => {
   document.getElementById('advancedPanel').style.display = 'none';
 };
 
+document.getElementById('btnBiblio').onclick = () => {
+  const panel = document.getElementById('biblioPanel');
+  const visible = panel.style.display !== 'none';
+  panel.style.display = visible ? 'none' : 'block';
+  if(!visible) renderBiblio();
+};
+document.getElementById('btnBiblioClose').onclick = () => {
+  document.getElementById('biblioPanel').style.display = 'none';
+};
+
+function renderBiblio(){
+  const grups = {};
+  ALL_BOOKS.forEach(b => {
+    if(!b.projecte_recerca || !b.projecte_recerca.trim()) return;
+    (grups[b.projecte_recerca] = grups[b.projecte_recerca] || []).push(b);
+  });
+
+  const noms = Object.keys(grups).sort();
+  if(!noms.length){
+    document.getElementById('biblioList').innerHTML =
+      `<div style="color:var(--text-soft); font-size:0.85rem;">Cap llibre té encara res al camp "Projecte / Recerca associada". Omple'l des de la fitxa de qualsevol llibre per veure'l aparèixer aquí.</div>`;
+    return;
+  }
+
+  const html = noms.map(nom => {
+    const llibres = grups[nom].slice().sort((a,b) => (a.autor||'').localeCompare(b.autor||'', 'ca'));
+    const items = llibres.map(b => `
+      <div class="dup-item" data-id="${b.id}">
+        <span>${escapeHtml(formatAuthor(b.autor))} — <em>${escapeHtml(b.titol)}</em>${b.any_publicacio ? ` (${b.any_publicacio})` : ''}</span>
+        <span class="dup-open">Obre ›</span>
+      </div>`).join('');
+    return `<div class="advanced-section">
+      <h3>${escapeHtml(nom)} · ${llibres.length} llibre${llibres.length === 1 ? '' : 's'}</h3>
+      ${items}
+    </div>`;
+  }).join('');
+
+  document.getElementById('biblioList').innerHTML = html;
+
+  document.querySelectorAll('#biblioList .dup-item').forEach(el => {
+    el.addEventListener('click', () => {
+      const book = ALL_BOOKS.find(b => b.id === el.dataset.id);
+      if(book){
+        document.getElementById('biblioPanel').style.display = 'none';
+        openModal(book);
+      }
+    });
+  });
+}
+
 function renderIncomplete(){
   const camps = [
     { key: 'area_principal', label: 'Sense àrea' },
@@ -1374,6 +1566,7 @@ function renderIncomplete(){
     { key: 'format', label: 'Sense format' },
     { key: 'ubicacio', label: 'Sense ubicació' },
     { key: 'autor', label: 'Sense autor' },
+    { key: 'paraules_clau', label: 'Sense paraules clau' },
   ];
   const html = camps.map(c => {
     const buits = ALL_BOOKS.filter(b => !b[c.key] || !String(b[c.key]).trim());
@@ -2235,6 +2428,7 @@ document.getElementById('bookForm').addEventListener('submit', async (e) => {
     editorial: document.getElementById('f_editorial').value.trim() || null,
     area_principal: document.getElementById('f_area').value || null,
     tipologia: document.getElementById('f_tipologia').value.trim() || null,
+    periode_historic: document.getElementById('f_periode').value || null,
     format: document.getElementById('f_format').value.trim() || null,
     ubicacio: document.getElementById('f_ubicacio').value.trim() || null,
     idioma: document.getElementById('f_idioma').value.trim() || null,
