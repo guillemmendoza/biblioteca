@@ -44,30 +44,6 @@
     --r-pill: 999px;
   }
 
-  [data-theme="dark"]{
-    --bg: #1C1917;
-    --bg-card: #26221F;
-    --bg-elevated: #2C2724;
-    --text: #EDE6DC;
-    --text-soft: #A69C8F;
-    --text-faint: #7C7268;
-    --border: #3A3430;
-    --border-soft: #332E2A;
-    --accent: #C39568;
-    --accent-soft: #362F28;
-
-    --c-historia: #3FB884;
-    --c-politica: #C96B7E;
-    --c-literatura: #6B93AC;
-    --c-musica: #E0B255;
-    --c-periodisme: #8A97A0;
-    --c-psicologia: #C89478;
-    --c-filosofia: #9884AC;
-    --c-esports: #7CA0C4;
-    --c-cultura: #D0AA5E;
-    --c-default: #C39568;
-  }
-
   *{ box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html,body{ margin:0; padding:0; }
   body{
@@ -430,7 +406,6 @@
     background-repeat:no-repeat; background-position: right 10px center;
   }
   .user-switch:hover{ background-color:var(--border-soft); }
-  #btnThemeToggle.user-switch{ padding:6px 12px; background-image:none; }
 
   .readonly-banner{
     background: var(--accent-soft);
@@ -868,7 +843,6 @@
       <div class="sub">Catàleg de Guillem i Nàstia</div>
     </div>
     <div class="stats" id="stats"></div>
-    <button type="button" class="user-switch" id="btnThemeToggle" title="Canvia de tema" aria-label="Canvia de tema">🌙</button>
     <select class="user-switch" id="userSwitch">
       <option value="">👤 Qui ets?</option>
       <option value="Guillem">👤 Guillem</option>
@@ -1462,17 +1436,6 @@ document.addEventListener('keydown', (e) => {
     performUndo();
   }
 });
-
-function applyTheme(theme){
-  document.documentElement.setAttribute('data-theme', theme);
-  document.getElementById('btnThemeToggle').textContent = theme === 'dark' ? '☀️' : '🌙';
-  localStorage.setItem('biblioteca_theme', theme);
-}
-document.getElementById('btnThemeToggle').onclick = () => {
-  const actual = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
-  applyTheme(actual === 'dark' ? 'light' : 'dark');
-};
-applyTheme(localStorage.getItem('biblioteca_theme') || 'light');
 
 function setCatalogSection(sec){
   catalogSection = sec;
