@@ -2383,14 +2383,20 @@ document.getElementById('btnDiscogsPrices').onclick = async () => {
 
   try{
     // Pas 1: si un disc ja te discogs_release_id desat, ens l'estalviem. La resta,
-    // el fem coincidir amb la coleccio de Discogs per titol+artista per trobar el seu id.
+    // el fem coincidir amb la coleccio de Discogs per titol+artista (desempatant per any si
+    // n'hi ha mes d'una edicio amb el mateix nom a la teva col·leccio, per no enganxar l'edicio equivocada).
     const musica = ALL_BOOKS.filter(b => !b.es_desig && (b.tipus_document === 'Vinil' || b.tipus_document === 'CD'));
     const senseId = musica.filter(b => !b.discogs_release_id);
 
     if(senseId.length){
       statusEl.textContent = `Buscant coincidencies a la teva col·lecció de Discogs per ${senseId.length} discos…`;
-      const clauMap = new Map();
-      senseId.forEach(b => clauMap.set((b.titol||'').toLowerCase().trim() + '|' + (b.autor||'').toLowerCase().trim(), b));
+      const clauMap = new Map(); // clau -> [ {llibre} ]
+      senseId.forEach(b => {
+        const clau = (b.titol||'').toLowerCase().trim() + '|' + (b.autor||'').toLowerCase().trim();
+        if(!clauMap.has(clau)) clauMap.set(clau, []);
+        clauMap.get(clau).push(b);
+      });
+      const candidatsPerClau = new Map(); // clau -> [ {id, year} ]
 
       let page = 1, totalPages = 1;
       do{
@@ -2401,12 +2407,30 @@ document.getElementById('btnDiscogsPrices').onclick = async () => {
           const info = item.basic_information || {};
           const artistes = (info.artists || []).map(a => toCognomNom((a.name||'').replace(/\s*\(\d+\)$/, ''))).filter(Boolean).join('; ');
           const clau = (info.title||'').toLowerCase().trim() + '|' + artistes.toLowerCase().trim();
-          const match = clauMap.get(clau);
-          if(match) match.discogs_release_id = String(item.id);
+          if(!clauMap.has(clau)) continue;
+          if(!candidatsPerClau.has(clau)) candidatsPerClau.set(clau, []);
+          candidatsPerClau.get(clau).push({ id: String(item.id), year: info.year || null });
         }
         totalPages = json.pagination ? json.pagination.pages : 1;
         page++;
       } while(page <= totalPages);
+
+      // Assignem: si nomes hi ha un candidat per aquesta clau, directe. Si n'hi ha diversos
+      // (mateixa cançó/artista pero diferents edicions a la teva col·leccio), triem el que
+      // tingui l'any mes proper al que ja tenim fitxat, per no enganxar-nos amb l'edicio equivocada.
+      for(const [clau, llibres] of clauMap.entries()){
+        const candidats = candidatsPerClau.get(clau);
+        if(!candidats || !candidats.length) continue;
+        llibres.forEach(b => {
+          let triat = candidats[0];
+          if(candidats.length > 1 && b.any_publicacio){
+            triat = candidats.reduce((millor, c) =>
+              Math.abs((c.year||9999) - b.any_publicacio) < Math.abs((millor.year||9999) - b.any_publicacio) ? c : millor
+            , candidats[0]);
+          }
+          b.discogs_release_id = triat.id;
+        });
+      }
     }
 
     const ambId = musica.filter(b => b.discogs_release_id && (b.preu === null || b.preu === undefined));
