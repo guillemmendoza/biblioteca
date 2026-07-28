@@ -837,12 +837,20 @@
     position: fixed; bottom: 26px; left:50%; transform: translateX(-50%) translateY(8px);
     background: rgba(43,38,32,0.92); color: var(--bg);
     -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
-    padding: 11px 20px; border-radius: var(--r-pill); font-size:0.86rem;
+    padding: 11px 12px 11px 20px; border-radius: var(--r-pill); font-size:0.86rem;
     font-family: var(--sys); font-weight:500;
+    display:flex; align-items:center; gap:12px; max-width: 90vw;
     opacity:0; pointer-events:none; transition: opacity 0.2s, transform 0.2s;
     z-index: 100; box-shadow: 0 8px 24px rgba(0,0,0,0.2);
   }
-  .toast.show{ opacity:1; transform: translateX(-50%) translateY(0); }
+  .toast.show{ opacity:1; transform: translateX(-50%) translateY(0); pointer-events:auto; }
+  .toast-action{
+    background: rgba(255,255,255,0.16); color: var(--bg); border:none;
+    font-family: var(--sys); font-weight:700; font-size:0.82rem;
+    padding: 6px 13px; border-radius: var(--r-pill); cursor:pointer; white-space:nowrap;
+    transition: background 0.15s;
+  }
+  .toast-action:hover{ background: rgba(255,255,255,0.28); }
 
   @media (max-width: 640px){
     .form-grid{ grid-template-columns: 1fr; }
@@ -1299,7 +1307,10 @@
   </div>
 </div>
 
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast">
+  <span id="toastMsg"></span>
+  <button type="button" id="toastAction" class="toast-action" style="display:none;"></button>
+</div>
 
 <div class="overlay" id="scannerOverlay">
   <div class="modal scanner-modal">
@@ -1424,6 +1435,34 @@ const READONLY = new URLSearchParams(location.search).get('share') === '1';
 let viewMode = localStorage.getItem('biblioteca_view_mode') || 'grid';
 let CURRENT_USER = localStorage.getItem('biblioteca_usuari') || null;
 
+// --- Sistema de Desfer (Ctrl+Z) ---
+// Pila en memoria (es perd en recarregar la pagina, es un safety net a curt termini, no un historial permanent)
+let UNDO_STACK = [];
+function pushUndo(label, undoFn){
+  UNDO_STACK.push({ label, undoFn });
+  if(UNDO_STACK.length > 15) UNDO_STACK.shift();
+}
+async function performUndo(){
+  const accio = UNDO_STACK.pop();
+  if(!accio){ toast('No hi ha res per desfer'); return; }
+  try{
+    await accio.undoFn();
+    toast(`Desfet: ${accio.label}`);
+  }catch(e){
+    console.error(e);
+    toast('No s\'ha pogut desfer aquesta acció', 'error');
+  }
+}
+document.addEventListener('keydown', (e) => {
+  if(READONLY) return;
+  const tag = document.activeElement?.tagName;
+  if(tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return; // no interferir amb el desfer nadiu dels camps de text
+  if((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'z'){
+    e.preventDefault();
+    performUndo();
+  }
+});
+
 function applyTheme(theme){
   document.documentElement.setAttribute('data-theme', theme);
   document.getElementById('btnThemeToggle').textContent = theme === 'dark' ? '☀️' : '🌙';
@@ -1510,14 +1549,23 @@ function areaColor(area){
 }
 
 let toastTimer = null;
-function toast(msg, type){
+function toast(msg, type, accio){
   const t = document.getElementById('toast');
+  const actionBtn = document.getElementById('toastAction');
   clearTimeout(toastTimer);
-  t.textContent = msg;
+  document.getElementById('toastMsg').textContent = msg;
   t.classList.remove('toast-error');
   if(type === 'error') t.classList.add('toast-error');
+  if(accio){
+    actionBtn.textContent = accio.label;
+    actionBtn.style.display = 'inline-block';
+    actionBtn.onclick = () => { t.classList.remove('show'); accio.onClick(); };
+  } else {
+    actionBtn.style.display = 'none';
+    actionBtn.onclick = null;
+  }
   t.classList.add('show');
-  toastTimer = setTimeout(()=> t.classList.remove('show'), 2600);
+  toastTimer = setTimeout(()=> t.classList.remove('show'), accio ? 6000 : 2600);
 }
 
 let sb = null;
@@ -2351,10 +2399,26 @@ document.getElementById('btnDiscogsImport').onclick = async () => {
     if(data) ALL_BOOKS.push(...data);
 
     statusEl.textContent = `Fet! S'han importat ${nous.length} discos nous de ${totsElsDiscos.length} a la teva col·lecció de Discogs.`;
-    toast(`${nous.length} discos importats`);
     renderHeaderStats();
     renderFilters();
     renderGrid();
+
+    if(data && data.length){
+      const idsInserits = data.map(r => r.id);
+      pushUndo(`importar ${idsInserits.length} discos de Discogs`, async () => {
+        await sb.from('llibres').delete().in('id', idsInserits);
+        idsInserits.forEach(id => {
+          const idx = ALL_BOOKS.findIndex(b => b.id === id);
+          if(idx !== -1) ALL_BOOKS.splice(idx, 1);
+        });
+        renderHeaderStats();
+        renderFilters();
+        renderGrid();
+      });
+      toast(`${nous.length} discos importats`, null, { label: 'Desfer', onClick: performUndo });
+    } else {
+      toast(`${nous.length} discos importats`);
+    }
   }catch(err){
     console.error(err);
     statusEl.textContent = 'Error important: ' + err.message;
@@ -2587,12 +2651,21 @@ function renderWishlist(){
     if(removeBtn) removeBtn.onclick = async () => {
       if(!confirm(`Treure "${book.titol}" de la llista de desitjos?`)) return;
       removeBtn.disabled = true;
+      const copiaPerDesfer = { ...book };
       const { error } = await sb.from('llibres').delete().eq('id', id);
       if(error){ toast('Error eliminant', 'error'); removeBtn.disabled = false; return; }
       const idx = ALL_BOOKS.findIndex(b => b.id === id);
       if(idx !== -1) ALL_BOOKS.splice(idx, 1);
       renderWishlist();
       renderHeaderStats();
+      pushUndo(`treure "${copiaPerDesfer.titol}" de la llista`, async () => {
+        const { data, error } = await sb.from('llibres').insert(copiaPerDesfer).select();
+        if(error) throw error;
+        if(data && data[0]) ALL_BOOKS.push(data[0]);
+        renderWishlist();
+        renderHeaderStats();
+      });
+      toast('Tret de la llista', null, { label: 'Desfer', onClick: performUndo });
     };
   });
 }
@@ -3049,17 +3122,27 @@ document.getElementById('btnImportConfirm').onclick = async () => {
   const toInsert = pendingImportRows.map(({_isDup, ...rest}) => ({...rest, afegit_per: CURRENT_USER || null}));
   const batchSize = 100;
   let inserted = 0;
+  const idsInserits = [];
   try{
     for(let i=0; i<toInsert.length; i+=batchSize){
       const batch = toInsert.slice(i, i+batchSize);
-      const { error } = await sb.from('llibres').insert(batch);
+      const { data, error } = await sb.from('llibres').insert(batch).select('id');
       if(error){ console.error(error); toast('Error important alguns llibres'); break; }
       inserted += batch.length;
+      if(data) idsInserits.push(...data.map(r => r.id));
     }
-    toast(`${inserted} llibres importats`);
     document.getElementById('importOverlay').classList.remove('open');
     pendingImportRows = [];
     loadBooks();
+    if(idsInserits.length){
+      pushUndo(`importar ${idsInserits.length} llibres`, async () => {
+        await sb.from('llibres').delete().in('id', idsInserits);
+        loadBooks();
+      });
+      toast(`${inserted} llibres importats`, null, { label: 'Desfer', onClick: performUndo });
+    } else {
+      toast(`${inserted} llibres importats`);
+    }
   }catch(err){
     console.error(err);
     toast('Error important el fitxer');
@@ -3835,12 +3918,12 @@ document.getElementById('btnDelete').onclick = async () => {
   if(!confirm('Segur que vols eliminar aquest llibre?')) return;
   clearTimeout(autoSaveTimer); // evita que un autodesat pendent es dispari sobre una fila ja eliminada
   const idAEliminar = editingId;
+  const copiaPerDesfer = ALL_BOOKS.find(b => b.id === idAEliminar);
   const delBtn = document.getElementById('btnDelete');
   delBtn.disabled = true;
   try{
     const { error } = await sb.from('llibres').delete().eq('id', idAEliminar);
     if(error) throw error;
-    toast('Llibre eliminat');
     editingId = null; // ara sí: la fila ja no existeix, closeModal no ha d'intentar desar-la
     closeModal();
     const idx = ALL_BOOKS.findIndex(b => b.id === idAEliminar);
@@ -3849,6 +3932,21 @@ document.getElementById('btnDelete').onclick = async () => {
     renderContinueReading();
     renderFilters();
     renderGrid();
+
+    if(copiaPerDesfer){
+      pushUndo(`eliminar "${copiaPerDesfer.titol}"`, async () => {
+        const { data, error } = await sb.from('llibres').insert(copiaPerDesfer).select();
+        if(error) throw error;
+        if(data && data[0]) ALL_BOOKS.push(data[0]);
+        renderHeaderStats();
+        renderContinueReading();
+        renderFilters();
+        renderGrid();
+      });
+      toast('Llibre eliminat', null, { label: 'Desfer', onClick: performUndo });
+    } else {
+      toast('Llibre eliminat');
+    }
   }catch(err){
     console.error(err);
     toast('Error eliminant el llibre', 'error');
