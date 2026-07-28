@@ -1884,6 +1884,7 @@ function attachLlegitHandler(btn, b){
     b.progres_lectura = progres;
     const missatges = { 'Sí': '✓ Marcat com a llegit', 'Llegint': `📖 Llegint (${progres}%)` };
     toast(missatges[nouEstat] || 'Marcat com a no llegit');
+    renderContinueReading();
     renderGrid();
   });
 }
@@ -2181,7 +2182,8 @@ function openModal(book){
 
 async function closeModal(){
   clearTimeout(autoSaveTimer);
-  if(editingId && !READONLY){
+  const esEdicio = editingId && !READONLY;
+  if(esEdicio){
     await autoSaveNow(); // assegura que cap canvi escrit i no desat encara es perdi en tancar
   }
   document.getElementById('overlay').classList.remove('open');
@@ -2193,6 +2195,11 @@ async function closeModal(){
   document.getElementById('progresWrap').style.display = 'none';
   setAutoSaveStatus('');
   closeScanner();
+  if(esEdicio){
+    renderHeaderStats();
+    renderContinueReading();
+    renderGrid();
+  }
 }
 
 document.getElementById('btnAdd').onclick = () => openModal(null);
@@ -2795,17 +2802,6 @@ function updateFilterBadge(){
   const badge = document.getElementById('filterBadge');
   badge.textContent = n;
   badge.style.display = n > 0 ? 'inline-flex' : 'none';
-}
-
-function countBy(field, splitOn){
-  const map = {};
-  ALL_BOOKS.filter(b => !b.es_desig).forEach(b => {
-    const v = b[field];
-    if(!v) return;
-    const parts = splitOn ? v.split(splitOn).map(p=>p.trim()) : [v];
-    parts.forEach(p => { if(p) map[p] = (map[p]||0) + 1; });
-  });
-  return Object.entries(map).sort((a,b) => b[1]-a[1]);
 }
 
 function renderStats(){
@@ -3785,10 +3781,9 @@ document.getElementById('bookForm').addEventListener('submit', async (e) => {
   if(submitBtn.disabled) return;
 
   // Editant un llibre existent: les dades ja es desen soles. Aquest botó només tanca
-  // (i closeModal ja s'encarrega de desar qualsevol canvi pendent abans de fer-ho).
+  // (i closeModal ja s'encarrega de desar els canvis pendents i refrescar la UI).
   if(editingId){
     await closeModal();
-    renderGrid();
     return;
   }
 
