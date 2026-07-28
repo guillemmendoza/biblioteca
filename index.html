@@ -2416,26 +2416,50 @@ document.getElementById('btnDiscogsPrices').onclick = async () => {
     }
 
     let actualitzats = 0;
+    let motiuError = null;
     for(let i = 0; i < ambId.length; i++){
       const b = ambId[i];
       statusEl.textContent = `Consultant preus… ${i + 1} de ${ambId.length} (${b.titol})`;
       try{
+        // Primer, price_suggestions (preu ajustat a l'estat de conservacio, pero nomes funciona si el compte te estatus de venedor a Discogs)
         const res = await fetch(`https://api.discogs.com/marketplace/price_suggestions/${b.discogs_release_id}?token=${token}`);
-        if(!res.ok) continue;
-        const preus = await res.json();
-        const condicio = condicioDiscogs(b.estat_conservacio);
-        const suggerit = preus[condicio] || Object.values(preus)[0];
-        if(suggerit && typeof suggerit.value === 'number'){
-          // Discogs dona el preu en la divisa del compte; ho desem tal qual (normalment EUR si el compte es d'Espanya)
-          await sb.from('llibres').update({ preu: suggerit.value, discogs_release_id: b.discogs_release_id }).eq('id', b.id);
-          b.preu = suggerit.value;
-          actualitzats++;
+        if(res.ok){
+          const preus = await res.json();
+          const condicio = condicioDiscogs(b.estat_conservacio);
+          const suggerit = preus[condicio] || Object.values(preus)[0];
+          if(suggerit && typeof suggerit.value === 'number'){
+            await sb.from('llibres').update({ preu: suggerit.value, discogs_release_id: b.discogs_release_id }).eq('id', b.id);
+            b.preu = suggerit.value;
+            actualitzats++;
+            continue;
+          }
+        } else if(res.status === 403 || res.status === 401){
+          motiuError = motiuError || 'seller';
         }
-      }catch(e){ console.error(e); }
+
+        // Pla B: estadistiques generals del mercat (preu mes baix disponible), no cal ser venedor per consultar-ho
+        const res2 = await fetch(`https://api.discogs.com/marketplace/stats/${b.discogs_release_id}?token=${token}`);
+        if(res2.ok){
+          const stats = await res2.json();
+          if(stats.lowest_price && typeof stats.lowest_price.value === 'number'){
+            await sb.from('llibres').update({ preu: stats.lowest_price.value, discogs_release_id: b.discogs_release_id }).eq('id', b.id);
+            b.preu = stats.lowest_price.value;
+            actualitzats++;
+          }
+        } else if(!motiuError){
+          motiuError = `error ${res2.status}`;
+        }
+      }catch(e){ console.error(e); motiuError = motiuError || e.message; }
     }
 
-    statusEl.textContent = `Fet! Preu actualitzat a ${actualitzats} de ${ambId.length} discos.`;
-    toast(`${actualitzats} preus actualitzats`);
+    if(actualitzats === 0 && motiuError === 'seller'){
+      statusEl.textContent = `No s'ha pogut actualitzar cap preu. Discogs ha rebutjat la consulta de preus suggerits (sol passar si el teu compte no té estatus de venedor a Discogs). Prova de nou: el pla B (estadístiques generals de mercat) també ho hauria d'intentar, però si segueix fallant, revisa que el token tingui permisos complets.`;
+    } else if(actualitzats === 0){
+      statusEl.textContent = `No s'ha pogut actualitzar cap preu (${motiuError || 'motiu desconegut'}). Prova-ho de nou d'aquí una estona, per si és un límit temporal de peticions de Discogs.`;
+    } else {
+      statusEl.textContent = `Fet! Preu actualitzat a ${actualitzats} de ${ambId.length} discos.`;
+      toast(`${actualitzats} preus actualitzats`);
+    }
     renderStats();
     renderGrid();
   }catch(err){
