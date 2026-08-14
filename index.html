@@ -714,28 +714,38 @@
     background: var(--bg-card);
     border-radius: var(--r-lg);
     max-width: 640px; width:100%;
-    max-height: calc(100vh - 80px); overflow-y:auto;
-    padding: 22px 24px 26px;
+    max-height: calc(100vh - 80px);
+    display:flex; flex-direction:column;
+    padding: 22px 24px 0;
     box-shadow: 0 20px 60px rgba(0,0,0,0.28);
   }
   .modal h2{
     font-family:'Fraunces',serif; font-weight:800; margin: 0 0 18px; font-size:1.35rem;
+    flex-shrink:0;
+  }
+  #bookForm{ display:flex; flex-direction:column; min-height:0; flex:1; }
+  .modal-scroll-area{ overflow-y:auto; flex:1; min-height:0; padding-bottom:22px; margin-right:-8px; padding-right:8px; }
+  .modal-actions{
+    display:flex; justify-content:space-between; align-items:center;
+    gap: 10px; flex-shrink:0;
+    border-top: 1px solid var(--border-soft);
+    background: var(--bg-card);
+    padding: 16px 0 24px;
   }
   @media (max-width: 640px){
     .overlay{ align-items:flex-end; padding:0; }
     .modal{
       border-radius: 22px 22px 0 0;
-      max-height: 92vh; overflow-y:auto;
-      padding: 10px 20px calc(24px + env(safe-area-inset-bottom));
+      max-height: 92vh;
+      padding: 10px 20px 0;
       animation: sheetUp 0.26s cubic-bezier(.32,.72,0,1);
     }
     .modal::before{
       content:''; display:block; width:36px; height:5px; border-radius:3px;
-      background: var(--border); margin: 6px auto 16px;
+      background: var(--border); margin: 6px auto 16px; flex-shrink:0;
     }
     .modal-actions{
-      margin: 20px -20px calc(-24px - env(safe-area-inset-bottom));
-      padding: 14px 20px calc(24px + env(safe-area-inset-bottom));
+      padding: 16px 0 calc(20px + env(safe-area-inset-bottom));
     }
   }
   @keyframes sheetUp{ from{ transform: translateY(100%); } to{ transform: translateY(0); } }
@@ -1011,6 +1021,7 @@
     <h2 id="modalTitle">Afegir llibre</h2>
     <div id="afegitPerInfo" style="font-size:0.78rem; color:var(--text-faint); margin-top:-14px; margin-bottom:16px; display:none;"></div>
     <form id="bookForm">
+      <div class="modal-scroll-area">
       <div class="isbn-lookup" id="isbnLookup">
         <label id="labelIsbnLookup">Omplir dades a partir de l'ISBN</label>
         <div style="display:flex; gap:8px;">
@@ -1310,6 +1321,7 @@
         <label>Llibres relacionats (mateixes paraules clau)</label>
         <div id="relatedBooksList"></div>
       </div>
+      </div>
       <div class="modal-actions">
         <div style="display:flex; align-items:center; gap:12px;">
           <button type="button" class="btn btn-danger" id="btnDelete" style="display:none;">Eliminar</button>
@@ -1327,8 +1339,10 @@
 <div class="overlay" id="importOverlay">
   <div class="modal">
     <h2>Importar des d'Excel</h2>
-    <div id="importSummary"></div>
-    <div id="importPreview" class="import-preview"></div>
+    <div class="modal-scroll-area">
+      <div id="importSummary"></div>
+      <div id="importPreview" class="import-preview"></div>
+    </div>
     <div class="modal-actions" style="justify-content:flex-end;">
       <button type="button" class="btn btn-secondary" id="btnImportCancel">Cancel·la</button>
       <button type="button" class="btn btn-primary" id="btnImportConfirm">Importa</button>
