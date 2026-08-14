@@ -532,6 +532,23 @@
     text-transform: uppercase; letter-spacing:0.02em;
   }
 
+  .timer-box{
+    display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+    background: var(--accent-soft); border-radius: var(--r-sm); padding: 12px 14px;
+  }
+  #timerDisplay{
+    font-family: 'Fraunces', serif; font-weight:700; font-size:1.3rem;
+    font-variant-numeric: tabular-nums; color: var(--text); min-width:90px;
+  }
+  #btnTimerToggle.timer-actiu{ background: var(--c-politica); color:#fff; }
+
+  .prestec-badge{
+    font-family: var(--sys); font-weight:600; font-size:0.72rem;
+    color: var(--c-politica); background: rgba(122,59,74,0.1);
+    padding: 4px 9px; border-radius: var(--r-sm); margin-top:4px;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+
   .rating-badge{
     font-family: var(--sys); font-weight:700; font-size:0.68rem;
     color: #A8792A; background: #C9962F22;
@@ -908,6 +925,7 @@
       <button type="button" class="adv-tab" data-tab="biblio">Bibliografia de treball</button>
       <button type="button" class="adv-tab" data-tab="excel">Excel</button>
       <button type="button" class="adv-tab" data-tab="discogs">💿 Discogs</button>
+      <button type="button" class="adv-tab" data-tab="prestecs">📤 Préstecs</button>
     </div>
 
     <div class="advanced-section adv-panel" data-panel="stats">
@@ -956,6 +974,9 @@
       <button class="btn btn-primary" id="btnDiscogsImport" style="margin-top:6px;">💿 Importa la meva col·lecció de Discogs</button>
       <button class="btn-outline" id="btnDiscogsPrices" style="margin-top:6px; margin-left:8px;">💶 Actualitza preus des de Discogs</button>
       <div id="discogsImportStatus" style="font-size:0.82rem; color:var(--text-soft); margin-top:10px;"></div>
+    </div>
+    <div class="advanced-section adv-panel" data-panel="prestecs" style="display:none;">
+      <div id="prestecsList"></div>
     </div>
   </div>
 
@@ -1178,6 +1199,22 @@
           <label>Progrés (%)</label>
           <input type="number" min="0" max="100" step="5" id="f_progres" placeholder="Ex: 40">
         </div>
+        <div id="paginesWrap" style="display:none;">
+          <label>Nombre de pàgines</label>
+          <input type="number" min="1" id="f_nombre_pagines" placeholder="Ex: 320">
+        </div>
+        <div id="paginaActualWrap" style="display:none;">
+          <label>Pàgina actual</label>
+          <input type="number" min="0" id="f_pagina_actual" placeholder="Ex: 120">
+        </div>
+        <div class="full" id="timerWrap" style="display:none;">
+          <label>Timer de lectura</label>
+          <div class="timer-box">
+            <span id="timerDisplay">00:00:00</span>
+            <button type="button" class="btn btn-secondary" id="btnTimerToggle">▶ Comença a llegir</button>
+            <span id="timerRitme" style="font-size:0.78rem; color:var(--text-soft); margin-left:auto;"></span>
+          </div>
+        </div>
         <div>
           <label>Favorit</label>
           <label style="display:flex; align-items:center; gap:8px; font-weight:500; text-transform:none; color:var(--text); cursor:pointer; height:38px;">
@@ -1249,6 +1286,17 @@
         <div class="full">
           <label>Comentaris personals</label>
           <textarea id="f_comentaris"></textarea>
+        </div>
+        <div class="full" id="prestecWrap">
+          <label>Préstec</label>
+          <div id="prestecActiu" style="display:none; align-items:center; gap:10px; background:var(--accent-soft); border-radius:var(--r-sm); padding:10px 12px;">
+            <span id="prestecInfo" style="flex:1; font-size:0.86rem;"></span>
+            <button type="button" class="btn btn-secondary" id="btnRetornat" style="font-size:0.78rem; padding:6px 12px;">✓ Retornat</button>
+          </div>
+          <div id="prestecForm" style="display:flex; gap:6px;">
+            <input type="text" id="f_prestat_a" placeholder="Nom de qui se l'emporta…" style="flex:1;">
+            <button type="button" class="btn btn-secondary" id="btnMarcarPrestec" style="font-size:0.82rem; padding:0 12px;">📤 Marca com a prestat</button>
+          </div>
         </div>
       </div>
       <div id="relatedBooksWrap" class="related-wrap" style="display:none;">
@@ -1966,6 +2014,7 @@ function buildGridCard(b){
     </div>
     <div class="titol">${b.tipus_document === 'Article' ? '<span class="doc-type-tag">Article</span> ' : (b.tipus_document === 'Vinil' || b.tipus_document === 'CD') ? `<span class="doc-type-tag">${b.tipus_document}</span> ` : ''}${escapeHtml(b.titol)}${b.volum ? ` <span class="volum-badge">${escapeHtml(b.volum)}</span>` : ''}</div>
     <div class="autor" title="${escapeHtml(b.autor || '')}">${escapeHtml(formatAuthor(b.autor))}</div>
+    ${b.prestat_a ? `<div class="prestec-badge" title="Prestat a ${escapeHtml(b.prestat_a)}">📤 Prestat a ${escapeHtml(b.prestat_a)}</div>` : ''}
     ${b.llegit === 'Llegint' ? `<div class="progres-track"><div class="progres-fill" style="width:${b.progres_lectura ?? 0}%"></div></div>` : ''}
     <div class="meta">
       <span class="c-format">${b.estat_conservacio ? escapeHtml(b.estat_conservacio.split(' ')[0]) : (b.format ? escapeHtml(b.format.split(',')[0].trim()) : '')}</span>
@@ -1998,6 +2047,7 @@ function buildListRow(b){
   if(stamp) subParts.push(stamp.label);
   if(b.llegit === 'Llegint') subParts.push(`Llegint (${b.progres_lectura ?? 0}%)`);
   if(b.valoracio) subParts.push(`★${b.valoracio}`);
+  if(b.prestat_a) subParts.push(`📤 ${b.prestat_a}`);
 
   const llegitCls = { 'Sí': 'llegit', 'Llegint': 'llegint' }[b.llegit] || '';
   const llegitContent = b.llegit === 'Llegint' ? (b.progres_lectura ?? 0) : (b.llegit === 'Sí' ? '✓' : '');
@@ -2032,6 +2082,10 @@ function escapeHtml(s){
 function toggleProgresWrap(){
   const mostra = document.getElementById('f_llegit').value === 'Llegint';
   document.getElementById('progresWrap').style.display = mostra ? 'block' : 'none';
+  document.getElementById('paginesWrap').style.display = mostra ? 'block' : 'none';
+  document.getElementById('paginaActualWrap').style.display = mostra ? 'block' : 'none';
+  document.getElementById('timerWrap').style.display = mostra ? 'block' : 'none';
+  if(mostra) actualitzarRitmeLectura();
 }
 document.getElementById('f_llegit').addEventListener('change', toggleProgresWrap);
 
@@ -2067,6 +2121,129 @@ function setTipusDocument(tipus){
 document.querySelectorAll('#tipusDocSeg .tipus-btn').forEach(btn => {
   btn.addEventListener('click', () => { if(!READONLY) setTipusDocument(btn.dataset.tipus); });
 });
+
+// --- Timer de lectura ---
+let timerInterval = null;
+let timerStartMs = null;
+
+function formatDuracio(segons){
+  const h = Math.floor(segons / 3600);
+  const m = Math.floor((segons % 3600) / 60);
+  const s = Math.floor(segons % 60);
+  return [h,m,s].map(n => String(n).padStart(2,'0')).join(':');
+}
+
+function resetTimerUI(){
+  clearInterval(timerInterval);
+  timerInterval = null;
+  timerStartMs = null;
+  const btn = document.getElementById('btnTimerToggle');
+  if(btn){ btn.textContent = '▶ Comença a llegir'; btn.classList.remove('timer-actiu'); }
+  const display = document.getElementById('timerDisplay');
+  if(display) display.textContent = '00:00:00';
+  actualitzarRitmeLectura();
+}
+
+function actualitzarRitmeLectura(){
+  const ritmeEl = document.getElementById('timerRitme');
+  if(!ritmeEl) return;
+  const book = ALL_BOOKS.find(b => b.id === editingId);
+  const pagines = parseInt(document.getElementById('f_nombre_pagines').value) || null;
+  const actual = parseInt(document.getElementById('f_pagina_actual').value) || 0;
+  const segonsAcumulats = book?.temps_lectura_segons || 0;
+  if(!pagines || !actual || !segonsAcumulats){
+    ritmeEl.textContent = segonsAcumulats ? `Temps de lectura acumulat: ${formatDuracio(segonsAcumulats)}` : '';
+    return;
+  }
+  const pagMinut = actual / (segonsAcumulats / 60);
+  const pagRestants = Math.max(pagines - actual, 0);
+  const minutsRestants = pagRestants / pagMinut;
+  const horesRestants = minutsRestants / 60;
+  const text = horesRestants >= 1
+    ? `A aquest ritme, et falten ~${horesRestants.toFixed(1)} h per acabar`
+    : `A aquest ritme, et falten ~${Math.round(minutsRestants)} min per acabar`;
+  ritmeEl.textContent = text;
+}
+
+document.getElementById('btnTimerToggle').onclick = async () => {
+  if(READONLY || !editingId) return;
+  const btn = document.getElementById('btnTimerToggle');
+
+  if(!timerInterval){
+    // Comencem a comptar
+    timerStartMs = Date.now();
+    btn.textContent = '⏸ Para i desa';
+    btn.classList.add('timer-actiu');
+    timerInterval = setInterval(() => {
+      const transcorregut = Math.floor((Date.now() - timerStartMs) / 1000);
+      document.getElementById('timerDisplay').textContent = formatDuracio(transcorregut);
+    }, 1000);
+    return;
+  }
+
+  // Parem i desem el temps acumulat
+  const segonsSessio = Math.floor((Date.now() - timerStartMs) / 1000);
+  clearInterval(timerInterval);
+  timerInterval = null;
+  timerStartMs = null;
+  btn.textContent = '▶ Comença a llegir';
+  btn.classList.remove('timer-actiu');
+  document.getElementById('timerDisplay').textContent = '00:00:00';
+
+  if(segonsSessio < 5) return; // sessio massa curta per valer la pena, no desem soroll
+
+  const book = ALL_BOOKS.find(b => b.id === editingId);
+  const nouTotal = (book?.temps_lectura_segons || 0) + segonsSessio;
+  const { error } = await sb.from('llibres').update({ temps_lectura_segons: nouTotal }).eq('id', editingId);
+  if(error){ toast('Error desant el temps de lectura', 'error'); return; }
+  if(book) book.temps_lectura_segons = nouTotal;
+  actualitzarRitmeLectura();
+  toast(`Sessió desada: ${formatDuracio(segonsSessio)}`);
+};
+
+document.getElementById('f_nombre_pagines').addEventListener('input', actualitzarRitmeLectura);
+document.getElementById('f_pagina_actual').addEventListener('input', actualitzarRitmeLectura);
+
+function renderPrestecEstat(book){
+  const wrap = document.getElementById('prestecWrap');
+  if(!book){ wrap.style.display = 'none'; return; } // no te sentit en crear un llibre nou
+  wrap.style.display = '';
+  const actiu = document.getElementById('prestecActiu');
+  const form = document.getElementById('prestecForm');
+  if(book.prestat_a){
+    actiu.style.display = 'flex';
+    form.style.display = 'none';
+    const data = book.data_prestec ? new Date(book.data_prestec).toLocaleDateString('ca-ES') : '';
+    document.getElementById('prestecInfo').textContent = `📤 Prestat a ${book.prestat_a}${data ? ' · ' + data : ''}`;
+  } else {
+    actiu.style.display = 'none';
+    form.style.display = 'flex';
+    document.getElementById('f_prestat_a').value = '';
+  }
+}
+
+document.getElementById('btnMarcarPrestec').onclick = async () => {
+  if(READONLY || !editingId) return;
+  const nom = document.getElementById('f_prestat_a').value.trim();
+  if(!nom){ toast('Escriu qui se l\'emporta primer', 'error'); return; }
+  const avui = new Date().toISOString().slice(0,10);
+  const { error } = await sb.from('llibres').update({ prestat_a: nom, data_prestec: avui }).eq('id', editingId);
+  if(error){ toast('Error marcant el préstec', 'error'); return; }
+  const b = ALL_BOOKS.find(x => x.id === editingId);
+  if(b){ b.prestat_a = nom; b.data_prestec = avui; renderPrestecEstat(b); }
+  toast(`Marcat com a prestat a ${nom}`);
+  renderGrid();
+};
+
+document.getElementById('btnRetornat').onclick = async () => {
+  if(READONLY || !editingId) return;
+  const { error } = await sb.from('llibres').update({ prestat_a: null, data_prestec: null }).eq('id', editingId);
+  if(error){ toast('Error marcant el retorn', 'error'); return; }
+  const b = ALL_BOOKS.find(x => x.id === editingId);
+  if(b){ b.prestat_a = null; b.data_prestec = null; renderPrestecEstat(b); }
+  toast('Marcat com a retornat');
+  renderGrid();
+};
 
 function setStarRating(valor){
   const rating = document.getElementById('starRating');
@@ -2165,6 +2342,10 @@ function openModal(book){
   f('f_progres', book?.progres_lectura);
   document.getElementById('f_favorit').checked = !!book?.favorit;
   document.getElementById('f_estat_conservacio').value = book?.estat_conservacio || '';
+  renderPrestecEstat(book);
+  document.getElementById('f_nombre_pagines').value = book?.nombre_pagines || '';
+  document.getElementById('f_pagina_actual').value = book?.pagina_actual || '';
+  resetTimerUI();
   setTipusDocument(book?.tipus_document || (catalogSection === 'musica' ? 'Vinil' : 'Llibre'));
 
   const afegitInfo = document.getElementById('afegitPerInfo');
@@ -2194,6 +2375,18 @@ function openModal(book){
 async function closeModal(){
   clearTimeout(autoSaveTimer);
   const esEdicio = editingId && !READONLY;
+  if(timerInterval && esEdicio){
+    // el timer estava en marxa: desem la sessio abans de tancar, no la perdem
+    const segonsSessio = Math.floor((Date.now() - timerStartMs) / 1000);
+    clearInterval(timerInterval);
+    timerInterval = null;
+    if(segonsSessio >= 5){
+      const book = ALL_BOOKS.find(b => b.id === editingId);
+      const nouTotal = (book?.temps_lectura_segons || 0) + segonsSessio;
+      await sb.from('llibres').update({ temps_lectura_segons: nouTotal }).eq('id', editingId);
+      if(book) book.temps_lectura_segons = nouTotal;
+    }
+  }
   if(esEdicio){
     await autoSaveNow(); // assegura que cap canvi escrit i no desat encara es perdi en tancar
   }
@@ -2253,6 +2446,7 @@ const ADVANCED_RENDERERS = {
   biblio: renderBiblio,
   excel: () => {},
   discogs: renderDiscogsTab,
+  prestecs: renderPrestecsTab,
 };
 
 function switchAdvancedTab(tab){
@@ -2575,6 +2769,44 @@ function renderDiscover(){
     list.appendChild(item);
   });
   document.getElementById('btnDiscoverAgain').onclick = renderDiscover;
+}
+
+function renderPrestecsTab(){
+  const prestats = ALL_BOOKS.filter(b => !b.es_desig && b.prestat_a);
+  const list = document.getElementById('prestecsList');
+  if(!prestats.length){
+    list.innerHTML = '<div style="color:var(--text-soft); font-size:0.85rem;">Ara mateix no tens res prestat.</div>';
+    return;
+  }
+  list.innerHTML = prestats
+    .sort((a,b) => (a.data_prestec||'').localeCompare(b.data_prestec||''))
+    .map(b => {
+      const data = b.data_prestec ? new Date(b.data_prestec).toLocaleDateString('ca-ES') : '';
+      return `<div class="wl-item" data-id="${b.id}">
+        <div class="wl-body">
+          <div class="wl-titol">${escapeHtml(b.titol)}</div>
+          <div class="wl-meta">Prestat a ${escapeHtml(b.prestat_a)}${data ? ' · des del ' + data : ''}</div>
+        </div>
+        <div class="wl-actions">
+          ${!READONLY ? `<button type="button" class="wl-btn got" data-action="retornat">✓ Retornat</button>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+
+  list.querySelectorAll('.wl-item').forEach(item => {
+    const id = item.dataset.id;
+    const book = ALL_BOOKS.find(b => b.id === id);
+    const btn = item.querySelector('[data-action="retornat"]');
+    if(btn) btn.onclick = async () => {
+      btn.disabled = true;
+      const { error } = await sb.from('llibres').update({ prestat_a: null, data_prestec: null }).eq('id', id);
+      if(error){ toast('Error marcant el retorn', 'error'); btn.disabled = false; return; }
+      book.prestat_a = null; book.data_prestec = null;
+      renderPrestecsTab();
+      renderGrid();
+      toast('Marcat com a retornat');
+    };
+  });
 }
 
 function renderWishlist(){
@@ -3767,6 +3999,8 @@ function buildPayload(){
       : null,
     favorit: document.getElementById('f_favorit').checked,
     estat_conservacio: document.getElementById('f_estat_conservacio').value || null,
+    nombre_pagines: document.getElementById('f_nombre_pagines').value ? parseInt(document.getElementById('f_nombre_pagines').value) : null,
+    pagina_actual: document.getElementById('f_pagina_actual').value ? parseInt(document.getElementById('f_pagina_actual').value) : null,
     tipus_document: document.getElementById('f_tipus_document').value || 'Llibre',
     valoracio: document.getElementById('f_valoracio').value ? parseInt(document.getElementById('f_valoracio').value) : null,
     isbn: document.getElementById('f_isbn').value.trim() || null,

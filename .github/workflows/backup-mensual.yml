@@ -1,0 +1,43 @@
+name: Backup mensual de la Biblioteca
+
+on:
+  schedule:
+    # El dia 1 de cada mes a les 4:00 UTC (5:00/6:00 hora de Barcelona segons l'horari)
+    - cron: '0 4 1 * *'
+  workflow_dispatch: {} # permet executar-lo manualment des de la pestanya "Actions" de GitHub
+
+permissions:
+  contents: write
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clonar el repositori
+        uses: actions/checkout@v4
+
+      - name: Descarregar totes les dades de Supabase
+        env:
+          SUPABASE_URL: 'https://pfebmwqmugiwsykfnqsc.supabase.co'
+          SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBmZWJtd3FtdWdpd3N5a2ZucXNjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM1MzU4MzMsImV4cCI6MjA5OTExMTgzM30.XlnZKD3sEZC20q9CUTbD-nqROGJA6PhFPAT435_dOqE'
+        run: |
+          mkdir -p backups
+          MES=$(date +'%Y-%m')
+          curl -s "$SUPABASE_URL/rest/v1/llibres?select=*&order=titol.asc" \
+            -H "apikey: $SUPABASE_ANON_KEY" \
+            -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+            -o "backups/biblioteca_${MES}.json"
+          echo "Fitxer de backup creat: backups/biblioteca_${MES}.json ($(wc -l < backups/biblioteca_${MES}.json) linies)"
+
+      - name: Esborrar backups de fa mes de 12 mesos (nomes ens quedem l'ultim any)
+        run: |
+          cd backups
+          ls -1 biblioteca_*.json 2>/dev/null | sort | head -n -12 | xargs -r rm -v
+
+      - name: Pujar el backup al repositori
+        run: |
+          git config user.name "Backup automatic"
+          git config user.email "backup@biblioteca.local"
+          git add backups/
+          git diff --staged --quiet || git commit -m "Backup automatic mensual de la biblioteca ($(date +'%Y-%m'))"
+          git push
